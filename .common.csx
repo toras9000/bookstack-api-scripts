@@ -1,5 +1,5 @@
 #r "nuget: BookStackApiClient, 23.5.2"
-#r "nuget: Lestaly, 0.37.0"
+#r "nuget: Lestaly, 0.40.0"
 #nullable enable
 using System.Threading;
 using BookStackApiClient;
