@@ -30,23 +30,32 @@ await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
 
     // Generate a number of entities for testing.
     using var client = new BookStackClient(info.ApiEntry, info.Key.Token, info.Key.Secret);
+    var helper = new BookStackClientHelper(client);
 
     var guid = Guid.NewGuid().ToString();
     for (var b = 0; b < 5; b++)
     {
         Console.WriteLine($"Create Book{b:D3} ...");
-        var book = await client.CreateBookAsync(new($"TestBook {guid} B{b:D3}", $"Desctiption Book{b:D3}"), cancelToken: signal.Token);
+        var book = await helper.Try(c => c.CreateBookAsync(new($"TestBook {guid} B{b:D3}", $"Desctiption Book{b:D3}"), cancelToken: signal.Token));
         for (var c = 0; c < 3; c++)
         {
-            var chapter = await client.CreateChapterAsync(new(book.id, $"TestChapter {guid} B{b:D3} C{c:D3}", $"B{b:D3}-Chapter{c:D3}"), signal.Token);
-            for (var p = 0; p < 3; p++)
+            var chapter = await helper.Try(c => c.CreateChapterAsync(new(book.id, $"TestChapter {guid} B{b:D3} C{c:D3}", $"B{b:D3}-Chapter{c:D3}"), signal.Token));
+            for (var p = 0; p < 2; p++)
             {
-                var page = await client.CreateMarkdownPageInChapterAsync(new(chapter.id, $"TestPage in Chapter {guid} B{b:D3} C{c:D3} CP{p:D3}", $"markdown in chapter B{b:D3}-C{c:D3}-CP{p:D3}"), signal.Token);
+                await helper.Try(c => c.CreateMarkdownPageInChapterAsync(new(chapter.id, $"TestPage in Chapter {guid} B{b:D3} C{c:D3} CP{p:D3}", $"markdown in chapter B{b:D3}-C{c:D3}-CP{p:D3}"), signal.Token));
+            }
+            for (var p = 2; p < 4; p++)
+            {
+                await helper.Try(c => c.CreateHtmlPageInChapterAsync(new(chapter.id, $"TestPage in Chapter {guid} B{b:D3} C{c:D3} CP{p:D3}", $"html in chapter B{b:D3}-C{c:D3}-CP{p:D3}"), signal.Token));
             }
         }
-        for (var p = 0; p < 3; p++)
+        for (var p = 0; p < 2; p++)
         {
-            var page = await client.CreateMarkdownPageInBookAsync(new(book.id, $"TestPage in Book {guid} B{b:D3} BP{p:D3}", $"markdown in book B{b:D3}-BP{p:D3}"), signal.Token);
+            await helper.Try(c => c.CreateMarkdownPageInBookAsync(new(book.id, $"TestPage in Book {guid} B{b:D3} BP{p:D3}", $"markdown in book B{b:D3}-BP{p:D3}"), signal.Token));
+        }
+        for (var p = 2; p < 4; p++)
+        {
+            await helper.Try(c => c.CreateHtmlPageInBookAsync(new(book.id, $"TestPage in Book {guid} B{b:D3} BP{p:D3}", $"html in book B{b:D3}-BP{p:D3}"), signal.Token));
         }
     }
 
