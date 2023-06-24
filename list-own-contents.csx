@@ -20,8 +20,7 @@ await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
 
     // Handle cancel key press
-    using var signal = new CancellationTokenSource();
-    using var handler = ConsoleWig.CancelKeyHandlePeriod(signal);
+    using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
 
     // Show caption
     ConsoleWig.WriteLine($"API entrypoint : {settings.ApiEntry}");

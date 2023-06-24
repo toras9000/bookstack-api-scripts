@@ -20,8 +20,7 @@ await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
 
     // Handle cancel key press
-    using var signal = new CancellationTokenSource();
-    using var handler = ConsoleWig.CancelKeyHandlePeriod(signal);
+    using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
 
     // Show access address
     ConsoleWig.WriteLine($"API entrypoint : {settings.ApiEntry}");
@@ -35,7 +34,7 @@ await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
     var page = await client.CreateMarkdownPageInBookAsync(new(book.id, "TestPage", "# Test page in book"), signal.Token);
 
     // attach
-    var file = ThisSource.GetFile();
+    var file = ThisSource.File();
     var attach1 = await client.CreateFileAttachmentAsync(new("attach from path", page.id), file.FullName, default, signal.Token);
 
     var content = Encoding.UTF8.GetBytes("attachment test");
