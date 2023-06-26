@@ -57,34 +57,47 @@ await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
             // Reading book contents
             var book = await helper.Try(c => c.ReadBookAsync(item.id, signal.Token));
             var bookDir = outdir.RelativeDirectory($"B[{book.id}].{book.name.ToFileName()}").WithCreate();
-            await bookDir.RelativeFile(".book.meta.json").WriteJsonAsync(book, signal.Token);
+            var metaDir = bookDir.RelativeDirectory(".meta").WithCreate();
+            await metaDir.RelativeFile(".book.json").WriteJsonAsync(book, signal.Token);
+
+            // Export page content
+            async Task exportPageAsync(string identify, BookContentPage pageContent)
+            {
+                var page = await helper.Try(c => c.ReadPageAsync(pageContent.id, signal.Token));
+                await metaDir.RelativeFile($"{identify}.json").WriteJsonAsync(page, signal.Token);
+                if (page.markdown.IsNotWhite()) await bookDir.RelativeFile($"{identify}_{page.name.ToFileName()}.md").WriteAllTextAsync(page.markdown, signal.Token);
+                else if (page.html.IsNotWhite()) await bookDir.RelativeFile($"{identify}_{page.name.ToFileName()}.html").WriteAllTextAsync(page.html, signal.Token);
+
+                var attachments = await helper.Try(c => c.ListAttachmentsAsync(new(filters: new Filter[] { new(nameof(AttachmentItem.uploaded_to), $"{page.id}") }), signal.Token));
+                var attachfiles = attachments.data.Where(a => !a.external).ToArray();
+                if (attachfiles.Length <= 0) return;
+
+                var attachDir = bookDir.RelativeDirectory($"{identify}_attachments").WithCreate();
+                foreach (var aitem in attachfiles)
+                {
+                    var attach = await helper.Try(c => c.ReadAttachmentAsync(aitem.id, signal.Token));
+                    var bin = Convert.FromBase64String(attach.content);
+                    var file = attachDir.RelativeFile($"A[{attach.id}].{attach.name.ToFileName()}".Mux(attach.extension, "."));
+                    await file.WriteAllBytesAsync(bin, signal.Token);
+                }
+            }
 
             // Output the contents.
-            foreach (var (content, cidx) in book.contents.Select((c, i) => (c, i)))
+            foreach (var (content, contentIdx) in book.contents.Select((c, i) => (c, i)))
             {
-                if (content is BookContentChapter chapter)
+                if (content is BookContentChapter chapterContent)
                 {
-                    var chapterDetail = await helper.Try(c => c.ReadChapterAsync(chapter.id, signal.Token));
-                    await bookDir.RelativeFile($".meta.{cidx:D3}C.json").WriteJsonAsync(chapterDetail, signal.Token);
+                    var chapter = await helper.Try(c => c.ReadChapterAsync(chapterContent.id, signal.Token));
+                    await metaDir.RelativeFile($"{contentIdx:D3}C.json").WriteJsonAsync(chapter, signal.Token);
 
-                    foreach (var (page, pidx) in chapter.pages.CoalesceEmpty().Select((c, i) => (c, i)))
+                    foreach (var (pageContent, pipageIndex) in chapterContent.pages.CoalesceEmpty().Select((c, i) => (c, i)))
                     {
-                        var pageDetail = await helper.Try(c => c.ReadPageAsync(page.id, signal.Token));
-                        await bookDir.RelativeFile($".meta.{cidx:D3}C.{pidx:D3}P.json").WriteJsonAsync(chapterDetail, signal.Token);
-
-                        var pageContent = (pageDetail.editor == "markdown") ? pageDetail.markdown : pageDetail.html;
-                        var pageExt = (pageDetail.editor == "markdown") ? "md" : "txt";
-                        await bookDir.RelativeFile($"{cidx:D3}C.{pidx:D3}P_{page.name.ToFileName()}.{pageExt}").WriteAllTextAsync(pageContent, signal.Token);
+                        await exportPageAsync($"{contentIdx:D3}C.{pipageIndex:D3}P", pageContent);
                     }
                 }
-                else if (content is BookContentPage page)
+                else if (content is BookContentPage pageContent)
                 {
-                    var pageDetail = await helper.Try(c => c.ReadPageAsync(page.id, signal.Token));
-                    await bookDir.RelativeFile($".meta.{cidx:D3}P.json").WriteJsonAsync(pageDetail, signal.Token);
-
-                    var pageContent = (pageDetail.editor == "markdown") ? pageDetail.markdown : pageDetail.html;
-                    var pageExt = (pageDetail.editor == "markdown") ? "md" : "txt";
-                    await bookDir.RelativeFile($"{cidx:D3}P_{page.name.ToFileName()}.{pageExt}").WriteAllTextAsync(pageContent, signal.Token);
+                    await exportPageAsync($"{contentIdx:D3}P", pageContent);
                 }
             }
         }
