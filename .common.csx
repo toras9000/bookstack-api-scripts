@@ -118,6 +118,7 @@ public class BookStackClientHelper
                 ConsoleWig.WriteLineColord(ConsoleColor.Yellow, $"Press any key to retry. Please wait a moment before trying again.");
                 ConsoleWig.WriteColord(ConsoleColor.Yellow, $"[Wait for key press].");
                 Console.ReadKey(intercept: true);
+                Console.WriteLine();
             }
         }
     }
