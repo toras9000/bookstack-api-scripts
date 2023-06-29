@@ -1,5 +1,6 @@
 #load ".common.csx"
 #nullable enable
+using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading;
 using BookStackApiClient;
@@ -31,6 +32,9 @@ await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
     // Create an API client.
     using var client = new BookStackClient(info.ApiEntry, info.Key.Token, info.Key.Secret);
     var helper = new BookStackClientHelper(client);
+
+    // Image downloader
+    using var downloader = new HttpClient();
 
     // Determine output directory
     var outdir = ThisSource.RelativeDirectory($"{ThisSource.File().BaseName()}-{DateTime.Now:yyyyMMdd-HHmmss}");
@@ -68,18 +72,43 @@ await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
                 if (page.markdown.IsNotWhite()) await bookDir.RelativeFile($"{identify}_{page.name.ToFileName()}.md").WriteAllTextAsync(page.markdown, signal.Token);
                 else if (page.html.IsNotWhite()) await bookDir.RelativeFile($"{identify}_{page.name.ToFileName()}.html").WriteAllTextAsync(page.html, signal.Token);
 
-                var attachments = await helper.Try(c => c.ListAttachmentsAsync(new(filters: new Filter[] { new(nameof(AttachmentItem.uploaded_to), $"{page.id}") }), signal.Token));
-                var attachfiles = attachments.data.Where(a => !a.external).ToArray();
-                if (attachfiles.Length <= 0) return;
 
-                var attachDir = bookDir.RelativeDirectory($"{identify}_attachments").WithCreate();
-                foreach (var aitem in attachfiles)
+                // export page attachments (only file attachment)
+                var attachCount = 0;
+                var attachDir = bookDir.RelativeDirectory($"{identify}_attachments");
+                while (true)
                 {
-                    var attach = await helper.Try(c => c.ReadAttachmentAsync(aitem.id, signal.Token));
-                    var bin = Convert.FromBase64String(attach.content);
-                    var file = attachDir.RelativeFile($"A[{attach.id}].{attach.name.ToFileName()}".Mux(attach.extension, "."));
-                    await file.WriteAllBytesAsync(bin, signal.Token);
+                    var attachments = await helper.Try(c => c.ListAttachmentsAsync(new(attachCount, count: 100, filters: new Filter[] { new(nameof(AttachmentItem.uploaded_to), $"{page.id}") }), signal.Token));
+                    foreach (var item in attachments.data)
+                    {
+                        if (item.external) continue;
+                        var attach = await helper.Try(c => c.ReadAttachmentAsync(item.id, signal.Token));
+                        var bin = Convert.FromBase64String(attach.content);
+                        var file = attachDir.RelativeFile($"A[{attach.id}].{attach.name.ToFileName()}".Mux(attach.extension, ".")).WithDirectoryCreate();
+                        await file.WriteAllBytesAsync(bin, signal.Token);
+                    }
+                    attachCount += attachments.data.Length;
+                    if (attachments.data.Length <= 0 || attachments.total <= attachCount) break;
                 }
+
+                // export image-gallery
+                var imageCount = 0;
+                var imageDir = bookDir.RelativeDirectory($"{identify}_images");
+                while (true)
+                {
+                    var iamges = await helper.Try(c => c.ListImagesAsync(new(imageCount, count: 100, filters: new Filter[] { new(nameof(ImageSummary.uploaded_to), $"{page.id}") }), signal.Token));
+                    foreach (var image in iamges.data)
+                    {
+                        using var download = await downloader.GetStreamAsync(image.url, signal.Token);
+                        var urlname = Path.GetFileName(image.url);
+                        var file = imageDir.RelativeFile($"I[{image.id}].{urlname.ToFileName()}").WithDirectoryCreate();
+                        using var fileStream = file.OpenWrite();
+                        await download.CopyToAsync(fileStream, signal.Token);
+                    }
+                    imageCount += iamges.data.Length;
+                    if (iamges.data.Length <= 0 || iamges.total <= imageCount) break;
+                }
+
             }
 
             // Output the contents.
