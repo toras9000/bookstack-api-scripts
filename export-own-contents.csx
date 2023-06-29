@@ -39,6 +39,9 @@ await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
     // Determine output directory
     var outdir = ThisSource.RelativeDirectory($"{ThisSource.File().BaseName()}-{DateTime.Now:yyyyMMdd-HHmmss}");
 
+    // Create export context
+    var expContext = new ExportContext(helper, downloader, signal.Token);
+
     // Retrieve all owned book information.
     var paging = 1;
     var processed = 0;
@@ -61,55 +64,7 @@ await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
             // Reading book contents
             var book = await helper.Try(c => c.ReadBookAsync(item.id, signal.Token));
             var bookDir = outdir.RelativeDirectory($"B[{book.id}].{book.name.ToFileName()}").WithCreate();
-            var metaDir = bookDir.RelativeDirectory(".meta").WithCreate();
-            await metaDir.RelativeFile(".book.json").WriteJsonAsync(book, signal.Token);
-
-            // Export page content
-            async Task exportPageAsync(string identify, BookContentPage pageContent)
-            {
-                var page = await helper.Try(c => c.ReadPageAsync(pageContent.id, signal.Token));
-                await metaDir.RelativeFile($"{identify}.json").WriteJsonAsync(page, signal.Token);
-                if (page.markdown.IsNotWhite()) await bookDir.RelativeFile($"{identify}_{page.name.ToFileName()}.md").WriteAllTextAsync(page.markdown, signal.Token);
-                else if (page.html.IsNotWhite()) await bookDir.RelativeFile($"{identify}_{page.name.ToFileName()}.html").WriteAllTextAsync(page.html, signal.Token);
-
-
-                // export page attachments (only file attachment)
-                var attachCount = 0;
-                var attachDir = bookDir.RelativeDirectory($"{identify}_attachments");
-                while (true)
-                {
-                    var attachments = await helper.Try(c => c.ListAttachmentsAsync(new(attachCount, count: 100, filters: new Filter[] { new(nameof(AttachmentItem.uploaded_to), $"{page.id}") }), signal.Token));
-                    foreach (var item in attachments.data)
-                    {
-                        if (item.external) continue;
-                        var attach = await helper.Try(c => c.ReadAttachmentAsync(item.id, signal.Token));
-                        var bin = Convert.FromBase64String(attach.content);
-                        var file = attachDir.RelativeFile($"A[{attach.id}].{attach.name.ToFileName()}".Mux(attach.extension, ".")).WithDirectoryCreate();
-                        await file.WriteAllBytesAsync(bin, signal.Token);
-                    }
-                    attachCount += attachments.data.Length;
-                    if (attachments.data.Length <= 0 || attachments.total <= attachCount) break;
-                }
-
-                // export image-gallery
-                var imageCount = 0;
-                var imageDir = bookDir.RelativeDirectory($"{identify}_images");
-                while (true)
-                {
-                    var iamges = await helper.Try(c => c.ListImagesAsync(new(imageCount, count: 100, filters: new Filter[] { new(nameof(ImageSummary.uploaded_to), $"{page.id}") }), signal.Token));
-                    foreach (var image in iamges.data)
-                    {
-                        using var download = await downloader.GetStreamAsync(image.url, signal.Token);
-                        var urlname = Path.GetFileName(image.url);
-                        var file = imageDir.RelativeFile($"I[{image.id}].{urlname.ToFileName()}").WithDirectoryCreate();
-                        using var fileStream = file.OpenWrite();
-                        await download.CopyToAsync(fileStream, signal.Token);
-                    }
-                    imageCount += iamges.data.Length;
-                    if (iamges.data.Length <= 0 || iamges.total <= imageCount) break;
-                }
-
-            }
+            var bookContext = new BookExportContext(expContext, bookDir);
 
             // Output the contents.
             foreach (var (content, contentIdx) in book.contents.Select((c, i) => (c, i)))
@@ -117,16 +72,14 @@ await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
                 if (content is BookContentChapter chapterContent)
                 {
                     var chapter = await helper.Try(c => c.ReadChapterAsync(chapterContent.id, signal.Token));
-                    await metaDir.RelativeFile($"{contentIdx:D3}C.json").WriteJsonAsync(chapter, signal.Token);
-
                     foreach (var (pageContent, pipageIndex) in chapterContent.pages.CoalesceEmpty().Select((c, i) => (c, i)))
                     {
-                        await exportPageAsync($"{contentIdx:D3}C.{pipageIndex:D3}P", pageContent);
+                        await exportPageAsync(bookContext, $"{contentIdx:D3}C.{pipageIndex:D3}P", pageContent);
                     }
                 }
                 else if (content is BookContentPage pageContent)
                 {
-                    await exportPageAsync($"{contentIdx:D3}P", pageContent);
+                    await exportPageAsync(bookContext, $"{contentIdx:D3}P", pageContent);
                 }
             }
         }
@@ -138,3 +91,53 @@ await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
     }
 
 });
+
+// Export context data
+record ExportContext(BookStackClientHelper Helper, HttpClient Downloader, CancellationToken CancelToken);
+record BookExportContext(ExportContext Exporting, DirectoryInfo BookDir) : ExportContext(Exporting);
+
+// Export page content
+async Task exportPageAsync(BookExportContext context, string identify, BookContentPage pageContent)
+{
+    var page = await context.Helper.Try(c => c.ReadPageAsync(pageContent.id, context.CancelToken));
+    if (page.markdown.IsNotWhite()) await context.BookDir.RelativeFile($"{identify}_{page.name.ToFileName()}.md").WriteAllTextAsync(page.markdown, context.CancelToken);
+    else if (page.html.IsNotWhite()) await context.BookDir.RelativeFile($"{identify}_{page.name.ToFileName()}.html").WriteAllTextAsync(page.html, context.CancelToken);
+
+    // export page attachments (only file attachment)
+    var attachCount = 0;
+    var attachInPage = new Filter[] { new(nameof(AttachmentItem.uploaded_to), $"{page.id}") };
+    var attachDir = context.BookDir.RelativeDirectory($"{identify}_attachments");
+    while (true)
+    {
+        var attachments = await context.Helper.Try(c => c.ListAttachmentsAsync(new(attachCount, count: 100, filters: attachInPage), context.CancelToken));
+        foreach (var item in attachments.data)
+        {
+            if (item.external) continue;
+            var attach = await context.Helper.Try(c => c.ReadAttachmentAsync(item.id, context.CancelToken));
+            var bin = Convert.FromBase64String(attach.content);
+            var file = attachDir.RelativeFile($"A[{attach.id}].{attach.name.ToFileName()}".Mux(attach.extension, ".")).WithDirectoryCreate();
+            await file.WriteAllBytesAsync(bin, context.CancelToken);
+        }
+        attachCount += attachments.data.Length;
+        if (attachments.data.Length <= 0 || attachments.total <= attachCount) break;
+    }
+
+    // export image-gallery
+    var imageCount = 0;
+    var imageInPage = new Filter[] { new(nameof(ImageSummary.uploaded_to), $"{page.id}") };
+    var imageDir = context.BookDir.RelativeDirectory($"{identify}_images");
+    while (true)
+    {
+        var iamges = await context.Helper.Try(c => c.ListImagesAsync(new(imageCount, count: 100, filters: imageInPage), context.CancelToken));
+        foreach (var image in iamges.data)
+        {
+            using var download = await context.Downloader.GetStreamAsync(image.url, context.CancelToken);
+            var urlname = Path.GetFileName(image.url);
+            var file = imageDir.RelativeFile($"I[{image.id}].{urlname.ToFileName()}").WithDirectoryCreate();
+            using var fileStream = file.OpenWrite();
+            await download.CopyToAsync(fileStream, context.CancelToken);
+        }
+        imageCount += iamges.data.Length;
+        if (iamges.data.Length <= 0 || iamges.total <= imageCount) break;
+    }
+}
