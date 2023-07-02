@@ -101,7 +101,7 @@ async Task exportPageAsync(BookExportContext context, string identify, BookConte
 {
     var page = await context.Helper.Try(c => c.ReadPageAsync(pageContent.id, context.CancelToken));
     if (page.markdown.IsNotWhite()) await context.BookDir.RelativeFile($"{identify}_{page.name.ToFileName()}.md").WriteAllTextAsync(page.markdown, context.CancelToken);
-    else if (page.html.IsNotWhite()) await context.BookDir.RelativeFile($"{identify}_{page.name.ToFileName()}.html").WriteAllTextAsync(page.html, context.CancelToken);
+    else if (page.raw_html.IsNotWhite()) await context.BookDir.RelativeFile($"{identify}_{page.name.ToFileName()}.html").WriteAllTextAsync(page.html, context.CancelToken);
 
     // export page attachments (only file attachment)
     var attachCount = 0;
