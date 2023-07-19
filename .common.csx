@@ -1,6 +1,6 @@
 #r "nuget: BookStackApiClient, 23.6.1"
 #r "nuget: SkiaSharp, 2.88.3"
-#r "nuget: Lestaly, 0.40.0"
+#r "nuget: Lestaly, 0.42.0"
 #nullable enable
 using System.Threading;
 using BookStackApiClient;
@@ -115,9 +115,9 @@ public class BookStackClientHelper
             }
             catch (ApiLimitResponseException ex)
             {
-                ConsoleWig.WriteLineColord(ConsoleColor.Red, $"API request rate limit reached. Rate limit: {ex.RequestsPerMin} [per minute]");
-                ConsoleWig.WriteLineColord(ConsoleColor.Yellow, $"Automatically retry after a while. If you press any key, an early retry is performed.");
-                ConsoleWig.WriteColord(ConsoleColor.Yellow, $"[Waiting...]");
+                ConsoleWig.WriteLineColored(ConsoleColor.Red, $"API request rate limit reached. Rate limit: {ex.RequestsPerMin} [per minute]");
+                ConsoleWig.WriteLineColored(ConsoleColor.Yellow, $"Automatically retry after a while. If you press any key, an early retry is performed.");
+                ConsoleWig.WriteColored(ConsoleColor.Yellow, $"[Waiting...]");
 
                 var watch = System.Diagnostics.Stopwatch.StartNew();
                 while (watch.ElapsedMilliseconds < (ex.RetryAfter * 1000))
