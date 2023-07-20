@@ -1,5 +1,6 @@
 #load ".common.csx"
 #nullable enable
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using BookStackApiClient;
@@ -19,18 +20,18 @@ var settings = new
     SaveToExcel = false,
 };
 
-/// <summary>Save Information</summary>
-record SaveRecord(long? BookID, long? ChapterID, string Type, long ID, string Name, DateTime CreateDate, DateTime UpdateDate, ExcelHyperlink URL, string? Tags)
+/// <summary>Content Information</summary>
+record ContentInfo(long? BookID, long? ChapterID, string Type, long ID, string Name, DateTime CreateDate, DateTime UpdateDate, ExcelHyperlink URL, string? Tags)
 {
-    public SaveRecord(ReadBookResult book, SearchContentBook additional)
+    public ContentInfo(ReadBookResult book, SearchContentBook additional)
         : this(book.id, null, "book", book.id, book.name, book.created_at, book.updated_at, makeLink(additional.url), formatTags(book.tags))
     { }
 
-    public SaveRecord(BookContentChapter chapter)
+    public ContentInfo(BookContentChapter chapter)
         : this(chapter.book_id, chapter.id, "chapter", chapter.id, chapter.name, chapter.created_at, chapter.updated_at, makeLink(chapter.url), "(unacquired)")
     { }
 
-    public SaveRecord(BookContentPage page)
+    public ContentInfo(BookContentPage page)
         : this(page.book_id, page.chapter_id, "page", page.id, page.name, page.created_at, page.updated_at, makeLink(page.url), "(unacquired)")
     { }
 
@@ -56,50 +57,84 @@ await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
     // Attempt to recover saved API key information.
     var info = await ApiKeyStore.RestoreAsync(settings.ApiEntry, signal.Token);
 
+    // Create an asynchronous enumerator.
+    var ownlist = enumerateOwnContents(info, signal.Token);
+
+    // File save or display output.
+    if (settings.SaveToFile)
+    {
+        if (settings.SaveToExcel)
+        {
+            var file = ThisSource.RelativeFile($"{ThisSource.File().BaseName()}-{DateTime.Now:yyyyMMdd-HHmmss}.xlsx");
+            ConsoleWig.Write("Save to ").WriteColored(ConsoleColor.Green, file.Name).WriteLine(" ...");
+            await ownlist.SaveToExcelAsync(file);
+        }
+        else
+        {
+            var file = ThisSource.RelativeFile($"{ThisSource.File().BaseName()}-{DateTime.Now:yyyyMMdd-HHmmss}.csv");
+            ConsoleWig.Write("Save to ").WriteColored(ConsoleColor.Green, file.Name).WriteLine(" ...");
+            await ownlist.SaveToCsvAsync(file);
+        }
+    }
+    else
+    {
+        ConsoleWig.WriteLine("List contents:");
+        await foreach (var content in ownlist)
+        {
+            var indent = content.Type switch
+            {
+                "chapter" => "  ",
+                "page" => content.ChapterID == 0 ? "  " : "    ",
+                _ => "",
+            };
+            ConsoleWig.Write($"{indent}[{content.Type}] {content.ID}: ").WriteLink(content.URL.Target, content.Name).NewLine();
+        }
+    }
+    ConsoleWig.WriteLine("Completed");
+});
+
+// Retrieve all owned book information.
+async IAsyncEnumerable<ContentInfo> enumerateOwnContents(ApiKeyStore store, [EnumeratorCancellation] CancellationToken cancelToken)
+{
     // Create an API client.
-    using var client = new BookStackClient(info.ApiEntry, info.Key.Token, info.Key.Secret);
+    using var client = new BookStackClient(store.ApiEntry, store.Key.Token, store.Key.Secret);
     var helper = new BookStackClientHelper(client);
 
-    // Retrieve all owned book information.
-    var ownlist = new List<SaveRecord>();
     var paging = 1;
     var processed = 0;
     while (true)
     {
         // Search for own books.
-        var found = await helper.Try(c => c.SearchAsync(new("{type:book} {owned_by:me}", count: 100, page: paging), signal.Token));
+        var found = await helper.Try(c => c.SearchAsync(new("{type:book} {owned_by:me}", count: 100, page: paging), cancelToken));
 
         // If API access is successful, scramble and save the API key.
         if (paging == 1)
         {
-            await info.SaveAsync();
+            await store.SaveAsync();
         }
 
         // Retrieve information for each book
         foreach (var item in found.books())
         {
             // Reading book contents
-            var book = await helper.Try(c => c.ReadBookAsync(item.id, signal.Token));
-            ownlist.Add(new(book, item));
-            ConsoleWig.Write($"Book.{book.id}: ").WriteLink(item.url, book.name).NewLine();
+            var book = await helper.Try(c => c.ReadBookAsync(item.id, cancelToken));
+            yield return new(book, item);
 
             // Output the contents.
             foreach (var content in book.contents)
             {
                 if (content is BookContentChapter chapter)
                 {
-                    ownlist.Add(new(chapter));
-                    ConsoleWig.Write($"  Chapter.{chapter.id}: ").WriteLink(chapter.url, chapter.name).WriteLine("");
+                    yield return new(chapter);
+
                     foreach (var page in chapter.pages.CoalesceEmpty())
                     {
-                        ownlist.Add(new(page));
-                        ConsoleWig.Write($"    Page.{page.id}: ").WriteLink(page.url, page.name).WriteLine("");
+                        yield return new(page);
                     }
                 }
                 else if (content is BookContentPage page)
                 {
-                    ownlist.Add(new(page));
-                    ConsoleWig.Write($"  Page.{page.id}: ").WriteLink(page.url, page.name).WriteLine("");
+                    yield return new(page);
                 }
             }
         }
@@ -109,25 +144,4 @@ await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
         processed += found.data.Length;
         if (found.data.Length <= 0 || found.total <= processed) break;
     }
-
-    if (ownlist.Count <= 0)
-    {
-        // If there was no book, indicate that.
-        Console.WriteLine("No books");
-    }
-    else if (settings.SaveToFile)
-    {
-        // Save to file if setting is enabled
-        if (settings.SaveToExcel)
-        {
-            var file = ThisSource.RelativeFile($"{ThisSource.File().BaseName()}-{DateTime.Now:yyyyMMdd-HHmmss}.xlsx");
-            await ownlist.ToPseudoAsyncEnumerable().SaveToExcelAsync(file);
-        }
-        else
-        {
-            var file = ThisSource.RelativeFile($"{ThisSource.File().BaseName()}-{DateTime.Now:yyyyMMdd-HHmmss}.csv");
-            await ownlist.SaveToCsvAsync(file);
-        }
-    }
-
-});
+}
