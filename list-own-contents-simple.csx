@@ -10,8 +10,8 @@ using Lestaly;
 
 var settings = new
 {
-    // API base address for BookStack.(Trailing slash is required.)
-    ApiEntry = new Uri(@"http://localhost:9986/api/"),
+    // BookStack service URL.
+    ServiceUrl = new Uri("http://localhost:9986/"),
 
     // Save to File
     SaveToFile = true,
@@ -45,17 +45,15 @@ record ContentInfo(long? BookID, long? ChapterID, string Type, long ID, string N
 // main processing
 await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
 {
-    // Set output to UTF8 encoding.
+    // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
-
-    // Handle cancel key press
     using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
 
-    // Show caption
-    ConsoleWig.WriteLine($"API entrypoint : {settings.ApiEntry}");
+    // Show access address
+    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
 
     // Attempt to recover saved API key information.
-    var info = await ApiKeyStore.RestoreAsync(settings.ApiEntry, signal.Token);
+    var info = await ApiKeyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
 
     // Create an asynchronous enumerator.
     var ownlist = enumerateOwnContents(info, signal.Token);

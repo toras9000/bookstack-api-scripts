@@ -9,24 +9,22 @@ using Lestaly;
 
 var settings = new
 {
-    // API base address for BookStack.(Trailing slash is required.)
-    ApiEntry = new Uri(@"http://localhost:9986/api/"),
+    // BookStack service URL.
+    ServiceUrl = new Uri("http://localhost:9986/"),
 };
 
 // main processing
 await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
 {
-    // Set output to UTF8 encoding.
+    // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
-
-    // Handle cancel key press
     using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
 
     // Show access address
-    ConsoleWig.WriteLine($"API entrypoint : {settings.ApiEntry}");
+    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
 
     // Attempt to recover saved API key information.
-    var info = await ApiKeyStore.RestoreAsync(settings.ApiEntry, signal.Token);
+    var info = await ApiKeyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
 
     // Create book, chapter, and pages.
     using var client = new BookStackClient(info.ApiEntry, info.Key.Token, info.Key.Secret);
