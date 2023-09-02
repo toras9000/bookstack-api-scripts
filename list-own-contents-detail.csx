@@ -47,7 +47,7 @@ record ContentInfo(long? BookID, long? ChapterID, string Type, long ID, string N
 }
 
 // main processing
-await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
+await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
 {
     // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);

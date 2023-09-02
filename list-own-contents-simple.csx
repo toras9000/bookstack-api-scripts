@@ -21,18 +21,18 @@ var settings = new
 };
 
 /// <summary>Content Information</summary>
-record ContentInfo(long? BookID, long? ChapterID, string Type, long ID, string Name, DateTime CreateDate, DateTime UpdateDate, ExcelHyperlink URL, string? Tags)
+record ContentInfo(long? BookID, long? ChapterID, string Type, long ID, string Name, long? Priority, DateTime CreateDate, DateTime UpdateDate, ExcelHyperlink URL, string? Tags)
 {
     public ContentInfo(ReadBookResult book, SearchContentBook additional)
-        : this(book.id, null, "book", book.id, book.name, book.created_at, book.updated_at, makeLink(additional.url), formatTags(book.tags))
+        : this(book.id, null, "book", book.id, book.name, default, book.created_at, book.updated_at, makeLink(additional.url), formatTags(book.tags))
     { }
 
     public ContentInfo(BookContentChapter chapter)
-        : this(chapter.book_id, chapter.id, "chapter", chapter.id, chapter.name, chapter.created_at, chapter.updated_at, makeLink(chapter.url), "(unacquired)")
+        : this(chapter.book_id, chapter.id, "chapter", chapter.id, chapter.name, chapter.priority, chapter.created_at, chapter.updated_at, makeLink(chapter.url), "(unacquired)")
     { }
 
     public ContentInfo(BookContentPage page)
-        : this(page.book_id, page.chapter_id, "page", page.id, page.name, page.created_at, page.updated_at, makeLink(page.url), "(unacquired)")
+        : this(page.book_id, page.chapter_id, "page", page.id, page.name, page.priority, page.created_at, page.updated_at, makeLink(page.url), "(unacquired)")
     { }
 
     private static ExcelHyperlink makeLink(string url)
@@ -43,7 +43,7 @@ record ContentInfo(long? BookID, long? ChapterID, string Type, long ID, string N
 }
 
 // main processing
-await Paved.RunAsync(configuration: o => o.AnyPause(), action: async () =>
+await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
 {
     // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
