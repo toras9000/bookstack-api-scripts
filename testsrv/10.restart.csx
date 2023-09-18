@@ -1,10 +1,7 @@
-// This script is meant to run with dotnet-script.
-// You can install .NET SDK 6.0 and install dotnet-script with the following command.
-// $ dotnet tool install -g dotnet-script
-
-#r "nuget: Lestaly, 0.45.0"
+#r "nuget: Lestaly, 0.47.0"
 using System.Threading;
 using Lestaly;
+using Lestaly.Cx;
 
 // Restart docker container with deletion of persistent data.
 // (If it is not activated, it is simply activated.)
@@ -15,9 +12,9 @@ await Paved.RunAsync(async () =>
     {
         var composeFile = ThisSource.RelativeFile("./docker/docker-compose.yml");
         Console.WriteLine("Stop service");
-        await CmdProc.CallAsync("docker", new[] { "compose", "--file", composeFile.FullName, "down", "--remove-orphans", "--volumes", });
+        await "docker".args("compose", "--file", composeFile.FullName, "down", "--remove-orphans", "--volumes");
         Console.WriteLine("Start service");
-        await CmdProc.CallAsync("docker", new[] { "compose", "--file", composeFile.FullName, "up", "-d", });
+        await "docker".args("compose", "--file", composeFile.FullName, "up", "-d").AsSuccessCode();
         Console.WriteLine("completed.");
     }
     catch (CmdProcExitCodeException err)
