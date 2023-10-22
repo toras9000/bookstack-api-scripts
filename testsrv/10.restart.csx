@@ -1,4 +1,5 @@
-#r "nuget: Lestaly, 0.47.0"
+#r "nuget: Lestaly, 0.48.0"
+#nullable enable
 using System.Threading;
 using Lestaly;
 using Lestaly.Cx;
@@ -11,10 +12,9 @@ await Paved.RunAsync(async () =>
     try
     {
         var composeFile = ThisSource.RelativeFile("./docker/docker-compose.yml");
-        Console.WriteLine("Stop service");
+        Console.WriteLine("Restart service");
         await "docker".args("compose", "--file", composeFile.FullName, "down", "--remove-orphans", "--volumes");
-        Console.WriteLine("Start service");
-        await "docker".args("compose", "--file", composeFile.FullName, "up", "-d").AsSuccessCode();
+        await "docker".args("compose", "--file", composeFile.FullName, "up", "-d").result().success();
         Console.WriteLine("completed.");
     }
     catch (CmdProcExitCodeException err)
