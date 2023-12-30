@@ -32,27 +32,11 @@ await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
     var helper = new BookStackClientHelper(client);
 
     // generate test image
-    var images = new List<(byte[] bin, string ext)>();
-    using var surface = SKSurface.Create(new SKImageInfo(200, 150, SKColorType.Rgba8888));
-    var paint = new SKPaint()
+    var images = new List<(byte[] bin, string ext)>
     {
-        Style = SKPaintStyle.Fill,
-        Color = SKColors.Blue,
+        (ContentGenerator.CreateCircleImage(100f, 75f, 50f, format: "png"),  "png"),
+        (ContentGenerator.CreateCircleImage(100f, 75f, 50f, format: "jpeg"), "jpg"),
     };
-    surface.Canvas.Clear(SKColors.White);
-    surface.Canvas.DrawCircle(100f, 75f, 50f, paint);
-    using (var image = surface.Snapshot())
-    using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
-    {
-        images.Add((data.ToArray(), "png"));
-    }
-    surface.Canvas.Clear(SKColors.White);
-    surface.Canvas.DrawRect(25, 25, 150, 100, paint);
-    using (var image = surface.Snapshot())
-    using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 80))
-    {
-        images.Add((data.ToArray(), "jpg"));
-    }
 
     var guid = Guid.NewGuid().ToString();
     for (var b = 0; b < 5; b++)
