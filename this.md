@@ -6,9 +6,9 @@ Sample C# script using [BookStackApiClient](https://www.nuget.org/packages/BookS
 
 The following is required to run the C# script
 
-- .NET 7 SDK Installation
+- .NET 8 SDK Installation
     - https://dotnet.microsoft.com/download
-- Installing dotnet-script v1.4.0 or later
+- Installing dotnet-script v1.5.0 or later
     - `dotnet tool install -g dotnet-script`
 
 
