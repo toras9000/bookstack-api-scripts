@@ -1,0 +1,59 @@
+services:
+  db:
+    # (windows + docker desktop + wsl2 + mariadb + bookstack) is initial migration failed.
+    # mysql is used as an alternative for samples.
+    image: mysql:8
+    restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - bookstack-db-container
+    healthcheck:
+      test: mysqladmin ping --host=localhost --user=$${MYSQL_USER} || exit 1
+      start_period: 10s
+      interval: 15s
+      timeout: 10s
+      retries: 16
+    ports:
+      - "9985:3306"
+    environment:
+      - TZ=Asia/Tokyo
+      - MYSQL_ROOT_PASSWORD=bookstack_rootpass
+      - MYSQL_DATABASE=bookstack_store
+      - MYSQL_USER=bookstack_user
+      - MYSQL_PASSWORD=bookstack_pass
+
+  app:
+    image: lscr.io/linuxserver/bookstack:version-v24.02.2
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - bookstack-app-container
+    healthcheck:
+      test: curl -f http://localhost || exit 1
+      start_period: 10s
+      interval: 15s
+      timeout: 10s
+      retries: 60
+    ports:
+      - "9986:80"
+    volumes:
+      - ./assets/init:/custom-cont-init.d
+      - ./assets/template:/assets/template
+    environment:
+      - TZ=Asia/Tokyo
+      - PUID=1000
+      - PGID=1000
+      - APP_URL=http://localhost:9986
+      - DB_HOST=bookstack-db-container
+      - DB_DATABASE=bookstack_store
+      - DB_USER=bookstack_user
+      - DB_PASS=bookstack_pass
+      - APP_THEME=my-theme
+      - API_REQUESTS_PER_MIN=99999
+      - CUSTOM_TEST_TOKEN_ID=00001111222233334444555566667777
+      - CUSTOM_TEST_TOKEN_SECRET=88889999aaaabbbbccccddddeeeeffff
