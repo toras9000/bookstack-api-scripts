@@ -7,7 +7,7 @@ using Lestaly.Cx;
 await Paved.RunAsync(async () =>
 {
     Console.WriteLine("Restart service");
-    var composeFile = ThisSource.RelativeFile("./docker/docker-compose.yml");
+    var composeFile = ThisSource.RelativeFile("./docker/compose.yml");
     await "docker".args("compose", "--file", composeFile.FullName, "down", "--remove-orphans", "--volumes");
     await "docker".args("compose", "--file", composeFile.FullName, "up", "-d", "--wait").result().success();
 
