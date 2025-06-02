@@ -1,7 +1,5 @@
 #load ".common.csx"
 #nullable enable
-using System.Text.RegularExpressions;
-using System.Threading;
 using BookStackApiClient;
 using Lestaly;
 
@@ -14,14 +12,14 @@ var settings = new
 };
 
 // main processing
-await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
     // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
-    using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
+    using var signal = new SignalCancellationPeriod();
 
     // Show access address
-    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+    WriteLine($"Service URL : {settings.ServiceUrl}");
 
     // Attempt to recover saved API key information.
     var info = await ApiKeyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
@@ -41,11 +39,11 @@ await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
     var contentPage1 = detailBook.pages().First(p => p.id == page1.id);
     var contentPage2 = detailBook.chapters().SelectMany(c => c.pages.CoalesceEmpty()).First(p => p.id == page2.id);
 
-    ConsoleWig.WriteLine("Created contents:");
-    ConsoleWig.Write($"  Book[{book.id}] ").WriteLink(foundBook.url).NewLine();
-    ConsoleWig.Write($"  Chapter[{chapter.id}] ").WriteLink(contentChapter.url).NewLine();
-    ConsoleWig.Write($"  Page1[{page1.id}] ").WriteLink(contentPage1.url).NewLine();
-    ConsoleWig.Write($"  Page2[{page2.id}] ").WriteLink(contentPage2.url).NewLine();
+    WriteLine("Created contents:");
+    WriteLine($"  Book[{book.id}] {Poster.Link[foundBook.url]}");
+    WriteLine($"  Chapter[{chapter.id}] {Poster.Link[contentChapter.url]}");
+    WriteLine($"  Page1[{page1.id}] {Poster.Link[contentPage1.url]}");
+    WriteLine($"  Page2[{page2.id}] {Poster.Link[contentPage2.url]}");
 
     // If API access is successful, scramble and save the API key.
     await info.SaveAsync();

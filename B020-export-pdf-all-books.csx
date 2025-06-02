@@ -1,8 +1,5 @@
 #load ".common.csx"
 #nullable enable
-using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
-using System.Threading;
 using BookStackApiClient;
 using Kokuban;
 using Lestaly;
@@ -19,14 +16,14 @@ var settings = new
 };
 
 // main processing
-await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
     // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
-    using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
+    using var signal = new SignalCancellationPeriod();
 
     // Show access address
-    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+    WriteLine($"Service URL : {settings.ServiceUrl}");
 
     // Attempt to recover saved API key information.
     var info = await ApiKeyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
@@ -46,7 +43,7 @@ await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
         // Export books
         foreach (var book in books.data)
         {
-            Console.WriteLine($"Book: {Chalk.Green[book.name]}");
+            WriteLine($"Book: {Chalk.Green[book.name]}");
             var pdfBin = await helper.Try(c => c.ExportBookPdfAsync(book.id, signal.Token));
             var pdfFile = settings.ExportDir.RelativeFile($"{book.id:D4}.{book.name.ToFileName()}.pdf").WithDirectoryCreate();
             await pdfFile.WriteAllBytesAsync(pdfBin, signal.Token);

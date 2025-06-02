@@ -1,7 +1,5 @@
 #load ".common.csx"
 #nullable enable
-using System.Text.RegularExpressions;
-using System.Threading;
 using BookStackApiClient;
 using Lestaly;
 
@@ -14,14 +12,14 @@ var settings = new
 };
 
 // main processing
-await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
     // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
-    using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
+    using var signal = new SignalCancellationPeriod();
 
     // Show access address
-    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+    WriteLine($"Service URL : {settings.ServiceUrl}");
 
     // Attempt to recover saved API key information.
     var info = await ApiKeyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
@@ -42,10 +40,10 @@ await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
     // Get recycle bin list
     var trashes = await client.ListRecycleBinAsync(default, signal.Token);
     var show = 10;
-    ConsoleWig.WriteLine($"Recycle bin{(show < trashes.data.Length ? $" (first {show})" : "")}:");
+    WriteLine($"Recycle bin{(show < trashes.data.Length ? $" (first {show})" : "")}:");
     foreach (var trash in trashes.data.Take(show))
     {
-        Console.WriteLine($"  Deletable {trash.deletable_type}: {trash.deletable.name}");
+        WriteLine($"  Deletable {trash.deletable_type}: {trash.deletable.name}");
     }
 
     // If API access is successful, scramble and save the API key.

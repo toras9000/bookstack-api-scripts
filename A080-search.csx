@@ -1,7 +1,5 @@
 #load ".common.csx"
 #nullable enable
-using System.Text.RegularExpressions;
-using System.Threading;
 using BookStackApiClient;
 using Lestaly;
 
@@ -14,14 +12,14 @@ var settings = new
 };
 
 // main processing
-await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
     // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
-    using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
+    using var signal = new SignalCancellationPeriod();
 
     // Show access address
-    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+    WriteLine($"Service URL : {settings.ServiceUrl}");
 
     // Attempt to recover saved API key information.
     var info = await ApiKeyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
@@ -30,27 +28,30 @@ await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
     using var client = new BookStackClient(info.ApiEntry, info.Key.Token, info.Key.Secret);
 
     // Search
+    WriteLine("Search query");
     while (true)
     {
         // input keyword
-        var query = ConsoleWig.WriteLine("Search query").Write(">").ReadLine();
-        if (query.IsEmpty() || query.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
+        Write(">");
+        var query = ReadLine();
+        if (query == null || query.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
+        if (query.IsEmpty()) continue;
 
         // show result
         var found = await client.SearchAsync(new(query, count: 10), signal.Token);
         if (found.data.Length <= 0)
         {
-            Console.WriteLine("No results.");
+            WriteLine("No results.");
         }
         else
         {
-            Console.WriteLine((found.data.Length < found.total) ? $"Results (first {found.data.Length}):" : "Results:");
+            WriteLine((found.data.Length < found.total) ? $"Results (first {found.data.Length}):" : "Results:");
             foreach (var item in found.data)
             {
-                Console.WriteLine($"  {item.name}: {item.url}");
+                WriteLine($"  {item.name}: {item.url}");
             }
         }
-        Console.WriteLine();
+        WriteLine();
     }
 
     // If API access is successful, scramble and save the API key.

@@ -1,7 +1,5 @@
 #load ".common.csx"
 #nullable enable
-using System.Text.RegularExpressions;
-using System.Threading;
 using BookStackApiClient;
 using Lestaly;
 
@@ -14,14 +12,14 @@ var settings = new
 };
 
 // main processing
-await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
     // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
-    using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
+    using var signal = new SignalCancellationPeriod();
 
     // Show access address
-    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+    WriteLine($"Service URL : {settings.ServiceUrl}");
 
     // Attempt to recover saved API key information.
     var info = await ApiKeyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
@@ -43,7 +41,7 @@ await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
 
     // Get information on created object (want URL)
     var foundPage = (await client.SearchAsync(new($"{{type:page}} {{in_name:{page.name}}}"), signal.Token)).data.First(s => s.type == "page" && s.id == page.id);
-    ConsoleWig.Write("Attached page: ").WriteLink(foundPage.url).NewLine();
+    WriteLine($"Attached page: {Poster.Link[foundPage.url]}");
 
     // If API access is successful, scramble and save the API key.
     await info.SaveAsync();

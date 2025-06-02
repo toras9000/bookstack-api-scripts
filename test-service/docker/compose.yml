@@ -1,3 +1,9 @@
+name: bookstack-for-script-sample
+
+volumes:
+  bookstack-db-data:
+  bookstack-app-data:
+
 services:
   db:
     # (windows + docker desktop + wsl2 + mariadb + bookstack) is initial migration failed.
@@ -8,6 +14,12 @@ services:
       default:
         aliases:
           - bookstack-db-container
+    ports:
+      - "9985:3306"
+    volumes:
+      - type: volume
+        source: bookstack-db-data
+        target: /var/lib/mysql
     healthcheck:
       test: mysqladmin ping --host=localhost --user=$${MYSQL_USER} || exit 1
       start_period: 180s
@@ -15,8 +27,6 @@ services:
       timeout: 5s
       interval: 300s
       retries: 3
-    ports:
-      - "9985:3306"
     environment:
       - TZ=Asia/Tokyo
       - MYSQL_ROOT_PASSWORD=bookstack_rootpass
@@ -25,7 +35,7 @@ services:
       - MYSQL_PASSWORD=bookstack_pass
 
   app:
-    image: lscr.io/linuxserver/bookstack:version-v24.05
+    image: lscr.io/linuxserver/bookstack:version-v25.05
     restart: unless-stopped
     depends_on:
       db:
@@ -34,28 +44,28 @@ services:
       default:
         aliases:
           - bookstack-app-container
+    ports:
+      - "9986:80"
     healthcheck:
-      test: curl -f http://localhost:80 || exit 1
+      test: curl -f -s http://localhost:80 || exit 1
       start_period: 300s
       start_interval: 3s
       timeout: 5s
       interval: 300s
       retries: 3
-    ports:
-      - "9986:80"
     volumes:
-      - ./assets/init:/custom-cont-init.d
-      - ./assets/template:/assets/template
+      - type: volume
+        source: bookstack-app-data
+        target: /config
     environment:
       - TZ=Asia/Tokyo
       - PUID=1000
       - PGID=1000
       - APP_URL=http://localhost:9986
+      - APP_KEY=base64:K26I0Iq0Hj2y2M281KRoIjd6uYBJDQUYPR5S4I0wDeo=
       - DB_HOST=bookstack-db-container
+      - DB_PORT=3306
       - DB_DATABASE=bookstack_store
-      - DB_USER=bookstack_user
-      - DB_PASS=bookstack_pass
-      - APP_THEME=my-theme
+      - DB_USERNAME=bookstack_user
+      - DB_PASSWORD=bookstack_pass
       - API_REQUESTS_PER_MIN=99999
-      - CUSTOM_TEST_TOKEN_ID=00001111222233334444555566667777
-      - CUSTOM_TEST_TOKEN_SECRET=88889999aaaabbbbccccddddeeeeffff

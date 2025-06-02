@@ -1,7 +1,5 @@
 #load ".common.csx"
 #nullable enable
-using System.Text.RegularExpressions;
-using System.Threading;
 using BookStackApiClient;
 using Lestaly;
 
@@ -14,14 +12,14 @@ var settings = new
 };
 
 // main processing
-await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
     // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
-    using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
+    using var signal = new SignalCancellationPeriod();
 
     // Show access address
-    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+    WriteLine($"Service URL : {settings.ServiceUrl}");
 
     // Attempt to recover saved API key information.
     var info = await ApiKeyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
@@ -45,9 +43,9 @@ await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
     var book_perms = await client.UpdateBookPermissionsAsync(book.id, new(role_permissions: permissions), signal.Token);
     var page_perms = await client.UpdatePagePermissionsAsync(page.id, new(role_permissions: permissions), signal.Token);
 
-    ConsoleWig.WriteLine("Created contents:");
-    ConsoleWig.Write($"  Book[{book.id}] ").WriteLink(settings.ServiceUrl.AuthorityRelative($"books/{book.slug}").AbsoluteUri).NewLine();
-    ConsoleWig.Write($"  Page[{page.id}] ").WriteLink(settings.ServiceUrl.AuthorityRelative($"books/{book.slug}/page/{page.slug}").AbsoluteUri).NewLine();
+    WriteLine("Created contents:");
+    WriteLine($"  Book[{book.id}] {settings.ServiceUrl.AuthorityRelative($"books/{book.slug}").AbsoluteUri}");
+    WriteLine($"  Page[{page.id}] {settings.ServiceUrl.AuthorityRelative($"books/{book.slug}/page/{page.slug}").AbsoluteUri}");
 
     // If API access is successful, scramble and save the API key.
     await info.SaveAsync();

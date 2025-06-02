@@ -1,7 +1,5 @@
 #load ".common.csx"
 #nullable enable
-using System.Text.RegularExpressions;
-using System.Threading;
 using BookStackApiClient;
 using Lestaly;
 
@@ -14,14 +12,14 @@ var settings = new
 };
 
 // main processing
-await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
     // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
-    using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
+    using var signal = new SignalCancellationPeriod();
 
     // Show access address
-    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+    WriteLine($"Service URL : {settings.ServiceUrl}");
 
     // Attempt to recover saved API key information.
     var info = await ApiKeyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
@@ -40,10 +38,10 @@ await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
     var shelf2 = await client.CreateShelfAsync(new("TestShelf2", books: [book2.id, book3.id, book4.id, book5.id]), cancelToken: signal.Token);
     var shelf3 = await client.CreateShelfAsync(new("TestShelf3", books: [book1.id]), cancelToken: signal.Token);
 
-    ConsoleWig.WriteLine("Created contents:");
-    ConsoleWig.Write($"  Shelf1[{shelf1.id}] ").WriteLink(settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf1.slug}").AbsoluteUri).NewLine();
-    ConsoleWig.Write($"  Shelf2[{shelf2.id}] ").WriteLink(settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf2.slug}").AbsoluteUri).NewLine();
-    ConsoleWig.Write($"  Shelf3[{shelf3.id}] ").WriteLink(settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf3.slug}").AbsoluteUri).NewLine();
+    WriteLine("Created contents:");
+    WriteLine($"  Shelf1[{shelf1.id}] {Poster.Link[settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf1.slug}").AbsoluteUri]}");
+    WriteLine($"  Shelf2[{shelf2.id}] {Poster.Link[settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf2.slug}").AbsoluteUri]}");
+    WriteLine($"  Shelf3[{shelf3.id}] {Poster.Link[settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf3.slug}").AbsoluteUri]}");
 
     // If API access is successful, scramble and save the API key.
     await info.SaveAsync();

@@ -1,12 +1,12 @@
-#r "nuget: BookStackApiClient, 24.5.0-lib.1"
-#r "nuget: SkiaSharp, 2.88.8"
+#r "nuget: BookStackApiClient, 25.5.0-lib.1"
+#r "nuget: SkiaSharp, 3.119.0"
 #r "nuget: Kokuban, 0.2.0"
-#r "nuget: Lestaly, 0.67.0"
+#r "nuget: Lestaly, 0.83.0"
 #nullable enable
 using System.Threading;
 using BookStackApiClient;
-using Lestaly;
 using Kokuban;
+using Lestaly;
 using SkiaSharp;
 
 /// <summary>API Access Information</summary>
@@ -154,24 +154,25 @@ public class BookStackClientHelper
 public static class ContentGenerator
 {
     public static byte[] CreateRectImage(float x, float y, float width, float height, int imgWidth = 200, int imgHeight = 150, uint fgcolor = 0xFF0000FF, uint bgcolor = 0xFFFFFFFF, string format = "png")
-        => CreateImage((canvas, painter) => canvas.DrawRect(x, y, width, height, painter), imgWidth, imgHeight, fgcolor, bgcolor, format);
+        => CreateImage((canvas, font, painter) => canvas.DrawRect(x, y, width, height, painter), imgWidth, imgHeight, fgcolor, bgcolor, format);
 
     public static byte[] CreateTextImage(string text, int imgWidth = 200, int imgHeight = 150, uint fgcolor = 0xFF000000, uint bgcolor = 0xFF808080, string format = "png")
-        => CreateImage((canvas, painter) => canvas.DrawText(text, 5f, painter.TextSize / 2 + imgHeight / 2, painter), imgWidth, imgHeight, fgcolor, bgcolor, format);
+        => CreateImage((canvas, font, painter) => canvas.DrawText(text, 5f, font.Size / 2 + imgHeight / 2, new(), painter), imgWidth, imgHeight, fgcolor, bgcolor, format);
 
     public static byte[] CreateCircleImage(float x, float y, float radius, int imgWidth = 200, int imgHeight = 150, uint fgcolor = 0xFF0000FF, uint bgcolor = 0xFFFFFFFF, string format = "png")
-        => CreateImage((canvas, painter) => canvas.DrawCircle(x, y, radius, painter), imgWidth, imgHeight, fgcolor, bgcolor, format);
+        => CreateImage((canvas, font, painter) => canvas.DrawCircle(x, y, radius, painter), imgWidth, imgHeight, fgcolor, bgcolor, format);
 
-    public static byte[] CreateImage(Action<SKCanvas, SKPaint> drawer, int width, int height, uint fgcolor, uint bgcolor, string format)
+    public static byte[] CreateImage(Action<SKCanvas, SKFont, SKPaint> drawer, int width, int height, uint fgcolor, uint bgcolor, string format)
     {
         using var surface = SKSurface.Create(new SKImageInfo(width, height, SKColorType.Rgba8888));
+        var font = new SKFont();
         var paint = new SKPaint()
         {
             Style = SKPaintStyle.Fill,
             Color = new SKColor(fgcolor),
         };
         surface.Canvas.Clear(new SKColor(bgcolor));
-        drawer(surface.Canvas, paint);
+        drawer(surface.Canvas, font, paint);
         using var image = surface.Snapshot();
         using var data = image.Encode(Enum.Parse<SKEncodedImageFormat>(format, ignoreCase: true), 100);
 

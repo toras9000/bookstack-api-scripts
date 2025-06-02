@@ -1,7 +1,5 @@
 #load ".common.csx"
 #nullable enable
-using System.Text.RegularExpressions;
-using System.Threading;
 using BookStackApiClient;
 using Lestaly;
 
@@ -14,14 +12,14 @@ var settings = new
 };
 
 // main processing
-await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
     // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
-    using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
+    using var signal = new SignalCancellationPeriod();
 
     // Show access address
-    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+    WriteLine($"Service URL : {settings.ServiceUrl}");
 
     // Attempt to recover saved API key information.
     var info = await ApiKeyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
@@ -33,8 +31,8 @@ await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
     var email = $"user-{Guid.NewGuid()}@example.com";
     var user = await client.CreateUserAsync(new("test-user", email), signal.Token);
 
-    ConsoleWig.WriteLine("Created user:");
-    ConsoleWig.Write($"  User ID={user.id}, {user.name} ").WriteLink(settings.ServiceUrl.AuthorityRelative($"settings/users/{user.id}").AbsoluteUri).NewLine();
+    WriteLine("Created user:");
+    WriteLine($"  User ID: {user.id}, {user.name} : {settings.ServiceUrl.AuthorityRelative($"settings/users/{user.id}").AbsoluteUri}");
 
     // If API access is successful, scramble and save the API key.
     await info.SaveAsync();

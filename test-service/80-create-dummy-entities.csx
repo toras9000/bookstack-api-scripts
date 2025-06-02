@@ -1,21 +1,13 @@
 #load "../.common.csx"
+#load ".settings.csx"
 #nullable enable
 using System.Net.Http;
-using System.Threading;
-using System.Xml.Linq;
 using BookStackApiClient;
 using Lestaly;
 using SkiaSharp;
 
-await Paved.RunAsync(async () =>
+return await Paved.ProceedAsync(async () =>
 {
-    // BookStack service URL.
-    var serviceUri = new Uri("http://localhost:9986/");
-
-    // API Token and Secret Key
-    var apiToken = "00001111222233334444555566667777";
-    var apiSecret = "88889999aaaabbbbccccddddeeeeffff";
-
     // Number of objects to be generated.
     var genBooks = new { min = 2, max = 5, };
     var genContents = new { min = 3, max = 6, };
@@ -31,11 +23,11 @@ await Paved.RunAsync(async () =>
     using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
 
     // Show info
-    Console.WriteLine($"Create dummy data in BookStack.");
-    Console.WriteLine($"BookStack Service URL : {serviceUri}");
+    WriteLine($"Create dummy data in BookStack.");
+    WriteLine($"BookStack Service URL : {settings.BookStack.Url}");
 
     // Create client and helper
-    using var client = new BookStackClient(new(serviceUri, "/api/"), apiToken, apiSecret);
+    using var client = new BookStackClient(new(settings.BookStack.Api.Entry), settings.BookStack.Api.TokenId, settings.BookStack.Api.TokenSecret);
     var helper = new BookStackClientHelper(client, signal.Token);
 
     // If not forced, check the status.
@@ -53,7 +45,7 @@ await Paved.RunAsync(async () =>
     for (var b = 0; b < bookCount; b++)
     {
         var bookNum = 1 + b;
-        Console.WriteLine($"Create dummy Book {bookNum} ...");
+        WriteLine($"Create dummy Book {bookNum} ...");
         var bookCover = ContentGenerator.CreateTextImage($"Book {bookNum} Cover");
         var book = await helper.Try(s => s.CreateBookAsync(new($"Book {bookNum}", $"Generated {DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}"), bookCover, $"cover.png", cancelToken: signal.Token));
         var contentCount = Random.Shared.Next(genContents.min, genContents.max + 1);
@@ -63,7 +55,7 @@ await Paved.RunAsync(async () =>
             if (Random.Shared.Next(2) == 0)
             {
                 var pageLabel = $"B{bookNum}-P{contentNum}";
-                Console.WriteLine($"  Create dummy content {contentNum} Page ...");
+                WriteLine($"  Create dummy content {contentNum} Page ...");
                 var page = Random.Shared.Next(2) switch
                 {
                     0 => await helper.Try(s => s.CreateMarkdownPageInBookAsync(new(book.id, $"Page {pageLabel}", $"Generated {DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}"), signal.Token)),
@@ -74,7 +66,7 @@ await Paved.RunAsync(async () =>
             }
             else
             {
-                Console.WriteLine($"  Create dummy content {contentNum} Chapter ...");
+                WriteLine($"  Create dummy content {contentNum} Chapter ...");
                 var chapterLabel = $"B{bookNum}-C{contentNum}";
                 var chapter = await helper.Try(s => s.CreateChapterAsync(new(book.id, $"Chapter {chapterLabel}", $"Generated {DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}"), signal.Token));
                 var pageCount = Random.Shared.Next(genSubPages.min, genSubPages.max + 1);
@@ -82,7 +74,7 @@ await Paved.RunAsync(async () =>
                 {
                     var pageNum = 1 + p;
                     var pageLabel = $"B{bookNum}-C{contentNum}-P{pageNum}";
-                    Console.WriteLine($"    Create dummy page {pageLabel} and materials ...");
+                    WriteLine($"    Create dummy page {pageLabel} and materials ...");
                     var page = Random.Shared.Next(2) switch
                     {
                         0 => await helper.Try(s => s.CreateMarkdownPageInChapterAsync(new(chapter.id, $"Page {pageLabel}", $"Generated {DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}"), signal.Token)),
@@ -123,5 +115,5 @@ await Paved.RunAsync(async () =>
         }
     }
 
-    Console.WriteLine($"Completed");
+    WriteLine($"Completed");
 });

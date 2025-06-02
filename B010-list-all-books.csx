@@ -1,8 +1,5 @@
 #load ".common.csx"
 #nullable enable
-using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
-using System.Threading;
 using BookStackApiClient;
 using Kokuban;
 using Lestaly;
@@ -16,14 +13,14 @@ var settings = new
 };
 
 // main processing
-await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
     // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
-    using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
+    using var signal = new SignalCancellationPeriod();
 
     // Show access address
-    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+    WriteLine($"Service URL : {settings.ServiceUrl}");
 
     // Attempt to recover saved API key information.
     var info = await ApiKeyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
@@ -43,29 +40,29 @@ await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
         // Show book info
         foreach (var book in books.data)
         {
-            Console.WriteLine($"Book: {Chalk.Green[book.name]}");
+            WriteLine($"Book: {Chalk.Green[book.name]}");
             var bookDetail = await helper.Try(c => c.ReadBookAsync(book.id, signal.Token));
             foreach (var content in bookDetail.contents)
             {
                 if (content is BookContentChapter chapter)
                 {
-                    Console.WriteLine($"  Chapter: {Chalk.Blue[chapter.name]}");
+                    WriteLine($"  Chapter: {Chalk.Blue[chapter.name]}");
                     foreach (var page in chapter.pages ?? [])
                     {
                         var draftMark = page.draft ? " (draft)" : "";
                         var templMark = page.draft ? " (template)" : "";
-                        Console.WriteLine($"    Page: {Chalk.Blue[page.name]}{draftMark}{templMark}");
+                        WriteLine($"    Page: {Chalk.Blue[page.name]}{draftMark}{templMark}");
                     }
                 }
                 else if (content is BookContentPage page)
                 {
                     var draftMark = page.draft ? " (draft)" : "";
                     var templMark = page.draft ? " (template)" : "";
-                    Console.WriteLine($"  Page: {Chalk.Blue[page.name]}{draftMark}{templMark}");
+                    WriteLine($"  Page: {Chalk.Blue[page.name]}{draftMark}{templMark}");
                 }
                 else
                 {
-                    Console.WriteLine($"  Unknown: {Chalk.BrightYellow[content.name]}");
+                    WriteLine($"  Unknown: {Chalk.BrightYellow[content.name]}");
                 }
             }
         }

@@ -1,35 +1,26 @@
 #load "../.common.csx"
+#load ".settings.csx"
 #nullable enable
-using System.Net.Http;
-using System.Threading;
-using System.Xml.Linq;
 using BookStackApiClient;
 using Kokuban;
 using Lestaly;
 
-await Paved.RunAsync(async () =>
+return await Paved.ProceedAsync(async () =>
 {
-    // BookStack service URL.
-    var serviceUri = new Uri("http://localhost:9986/");
-
-    // API Token and Secret Key
-    var apiToken = "00001111222233334444555566667777";
-    var apiSecret = "88889999aaaabbbbccccddddeeeeffff";
-
     // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
-    using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
+    using var signal = new SignalCancellationPeriod();
 
     // Show info
-    Console.WriteLine($"Delete all books in BookStack.");
-    Console.WriteLine($"BookStack Service URL : {serviceUri}");
+    WriteLine($"Delete all books in BookStack.");
+    WriteLine($"BookStack Service URL : {settings.BookStack.Url}");
 
     // Create client and helper
-    using var client = new BookStackClient(new(serviceUri, "/api/"), apiToken, apiSecret);
+    using var client = new BookStackClient(new(settings.BookStack.Api.Entry), settings.BookStack.Api.TokenId, settings.BookStack.Api.TokenSecret);
     var helper = new BookStackClientHelper(client, signal.Token);
 
     // Delete image gallery images
-    Console.WriteLine($"Delete Gallery Images");
+    WriteLine($"Delete Gallery Images");
     while (true)
     {
         // Get a list of images
@@ -39,13 +30,13 @@ await Paved.RunAsync(async () =>
         // Delete each image
         foreach (var image in images.data)
         {
-            Console.WriteLine($"..  Delete Image [{image.id}] {Chalk.Green[image.name]}");
+            WriteLine($"..  Delete Image [{image.id}] {Chalk.Green[image.name]}");
             await helper.Try(s => s.DeleteImageAsync(image.id, signal.Token));
         }
     }
 
     // Delete Books
-    Console.WriteLine($"Delete Books");
+    WriteLine($"Delete Books");
     while (true)
     {
         // Get a list of books
@@ -55,13 +46,13 @@ await Paved.RunAsync(async () =>
         // Delete each book
         foreach (var book in books.data)
         {
-            Console.WriteLine($"Delete Book [{book.id}] {Chalk.Green[book.name]}");
+            WriteLine($"Delete Book [{book.id}] {Chalk.Green[book.name]}");
             await helper.Try(s => s.DeleteBookAsync(book.id, signal.Token));
         }
     }
 
     // Delete Shelves
-    Console.WriteLine($"Delete Shelves");
+    WriteLine($"Delete Shelves");
     while (true)
     {
         // Get a list of shelves
@@ -71,13 +62,13 @@ await Paved.RunAsync(async () =>
         // Delete each shelf
         foreach (var shelf in shelves.data)
         {
-            Console.WriteLine($"Delete Shelf [{shelf.id}] {Chalk.Green[shelf.name]}");
+            WriteLine($"Delete Shelf [{shelf.id}] {Chalk.Green[shelf.name]}");
             await helper.Try(s => s.DeleteShelfAsync(shelf.id, signal.Token));
         }
     }
 
     // Empty the trash
-    Console.WriteLine($"Destroy RecycleBin");
+    WriteLine($"Destroy RecycleBin");
     while (true)
     {
         // Get a list of books
@@ -87,11 +78,11 @@ await Paved.RunAsync(async () =>
         // Delete Trash Items
         foreach (var recycle in recycles.data)
         {
-            Console.WriteLine($"Destroy {recycle.deletable_type} [{recycle.id}]");
+            WriteLine($"Destroy {recycle.deletable_type} [{recycle.id}]");
             await helper.Try(s => s.DestroyRecycleItemAsync(recycle.id, cancelToken: signal.Token));
         }
     }
 
-    Console.WriteLine($"Completed");
+    WriteLine($"Completed");
 });
 
