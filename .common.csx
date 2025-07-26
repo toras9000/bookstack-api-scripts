@@ -1,5 +1,6 @@
-#r "nuget: BookStackApiClient, 25.5.0-lib.2"
+#r "nuget: BookStackApiClient, 25.5.0-lib.3"
 #r "nuget: SkiaSharp, 3.119.0"
+#r "nuget: R3, 1.3.0"
 #r "nuget: Kokuban, 0.2.0"
 #r "nuget: Lestaly.General, 0.100.0"
 #nullable enable
@@ -96,56 +97,6 @@ public class ApiKeyStore
 
     /// <summary>Is the information stored</summary>
     private bool stored;
-}
-
-/// <summary>
-/// Auxiliary class for BookStackClient
-/// </summary>
-public class BookStackClientHelper
-{
-    /// <summary>Constructor that ties the client instance.</summary>
-    /// <param name="client">BookStackClient instance</param>
-    /// <param name="cancelToken">Cancel token.</param>
-    public BookStackClientHelper(BookStackClient client, CancellationToken cancelToken)
-    {
-        this.Client = client;
-    }
-
-    /// <summary>client instance</summary>
-    public BookStackClient Client { get; }
-
-    /// <summary>cancel token</summary>
-    public CancellationToken CancelToken { get; }
-
-    /// <summary>Helper method to retry at API request limit</summary>
-    /// <param name="accessor">API request processing</param>
-    /// <typeparam name="TResult">API return type</typeparam>
-    /// <returns>API return value</returns>
-    public async ValueTask<TResult> Try<TResult>(Func<BookStackClient, Task<TResult>> accessor)
-    {
-        while (true)
-        {
-            try
-            {
-                return await accessor(this.Client).ConfigureAwait(true);
-            }
-            catch (ApiLimitResponseException ex)
-            {
-                Console.WriteLine(Chalk.Yellow[$"Caught in API call rate limitation. Rate limit: {ex.RequestsPerMin} [per minute], {ex.RetryAfter} seconds to lift the limit."]);
-                Console.WriteLine(Chalk.Yellow[$"It will automatically retry after a period of time has elapsed."]);
-                Console.WriteLine(Chalk.Yellow[$"[Waiting...]"]);
-                await Task.Delay(500 + (int)(ex.RetryAfter * 1000), this.CancelToken);
-                Console.WriteLine();
-            }
-        }
-    }
-
-    /// <summary>Helper method to retry at API request limit</summary>
-    /// <param name="accessor">API request processing</param>
-    public async ValueTask Try(Func<BookStackClient, Task> accessor)
-    {
-        await Try<int>(async c => { await accessor(c); return 0; });
-    }
 }
 
 /// <summary>

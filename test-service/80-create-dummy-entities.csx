@@ -3,7 +3,9 @@
 #nullable enable
 using System.Net.Http;
 using BookStackApiClient;
+using BookStackApiClient.Utility;
 using Lestaly;
+using R3;
 using SkiaSharp;
 
 return await Paved.ProceedAsync(async () =>
@@ -28,12 +30,12 @@ return await Paved.ProceedAsync(async () =>
 
     // Create client and helper
     using var client = new BookStackClient(new(settings.BookStack.Api.Entry), settings.BookStack.Api.TokenId, settings.BookStack.Api.TokenSecret);
-    var helper = new BookStackClientHelper(client, signal.Token);
+    using var helper = new BookStackClientHelper(client, signal.Token);
 
     // If not forced, check the status.
     if (!forceGenerate)
     {
-        var books = await helper.Try(s => s.ListBooksAsync(cancelToken: signal.Token));
+        var books = await helper.Try((c, breaker) => c.ListBooksAsync(cancelToken: breaker));
         if (0 < books.total)
         {
             throw new PavedMessageException($"Some kind of book already exists.", PavedMessageKind.Warning);
@@ -47,7 +49,7 @@ return await Paved.ProceedAsync(async () =>
         var bookNum = 1 + b;
         WriteLine($"Create dummy Book {bookNum} ...");
         var bookCover = ContentGenerator.CreateTextImage($"Book {bookNum} Cover");
-        var book = await helper.Try(s => s.CreateBookAsync(new($"Book {bookNum}", $"Generated {DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}"), bookCover, $"cover.png", cancelToken: signal.Token));
+        var book = await helper.Try((c, breaker) => c.CreateBookAsync(new($"Book {bookNum}", $"Generated {DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}"), bookCover, $"cover.png", cancelToken: breaker));
         var contentCount = Random.Shared.Next(genContents.min, genContents.max + 1);
         for (var c = 0; c < contentCount; c++)
         {
@@ -58,8 +60,8 @@ return await Paved.ProceedAsync(async () =>
                 WriteLine($"  Create dummy content {contentNum} Page ...");
                 var page = Random.Shared.Next(2) switch
                 {
-                    0 => await helper.Try(s => s.CreateMarkdownPageInBookAsync(new(book.id, $"Page {pageLabel}", $"Generated {DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}"), signal.Token)),
-                    _ => await helper.Try(s => s.CreateHtmlPageInBookAsync(new(book.id, $"Page {pageLabel}", $"<span>Generated <time>{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}</time></span>"), signal.Token)),
+                    0 => await helper.Try((c, breaker) => c.CreateMarkdownPageInBookAsync(new(book.id, $"Page {pageLabel}", $"Generated {DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}"), breaker)),
+                    _ => await helper.Try((c, breaker) => c.CreateHtmlPageInBookAsync(new(book.id, $"Page {pageLabel}", $"<span>Generated <time>{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}</time></span>"), breaker)),
                 };
 
                 await createPageMaterials(page, pageLabel, $"B{bookNum}/P{contentNum}");
@@ -68,7 +70,7 @@ return await Paved.ProceedAsync(async () =>
             {
                 WriteLine($"  Create dummy content {contentNum} Chapter ...");
                 var chapterLabel = $"B{bookNum}-C{contentNum}";
-                var chapter = await helper.Try(s => s.CreateChapterAsync(new(book.id, $"Chapter {chapterLabel}", $"Generated {DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}"), signal.Token));
+                var chapter = await helper.Try((c, breaker) => c.CreateChapterAsync(new(book.id, $"Chapter {chapterLabel}", $"Generated {DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}"), breaker));
                 var pageCount = Random.Shared.Next(genSubPages.min, genSubPages.max + 1);
                 for (var p = 0; p < pageCount; p++)
                 {
@@ -77,8 +79,8 @@ return await Paved.ProceedAsync(async () =>
                     WriteLine($"    Create dummy page {pageLabel} and materials ...");
                     var page = Random.Shared.Next(2) switch
                     {
-                        0 => await helper.Try(s => s.CreateMarkdownPageInChapterAsync(new(chapter.id, $"Page {pageLabel}", $"Generated {DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}"), signal.Token)),
-                        _ => await helper.Try(s => s.CreateHtmlPageInChapterAsync(new(chapter.id, $"Page {pageLabel}", $"<span>Generated <time>{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}</time></span>"), signal.Token)),
+                        0 => await helper.Try((c, breaker) => c.CreateMarkdownPageInChapterAsync(new(chapter.id, $"Page {pageLabel}", $"Generated {DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}"), breaker)),
+                        _ => await helper.Try((c, breaker) => c.CreateHtmlPageInChapterAsync(new(chapter.id, $"Page {pageLabel}", $"<span>Generated <time>{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff}</time></span>"), breaker)),
                     };
 
                     await createPageMaterials(page, pageLabel, $"B{bookNum}/C{contentNum}/P{pageNum}");
@@ -92,7 +94,7 @@ return await Paved.ProceedAsync(async () =>
                 {
                     var imageLabel = $"{pageLabel}-{i}";
                     var imageBin = ContentGenerator.CreateTextImage(imageLabel);
-                    var image = await helper.Try(s => s.CreateImageAsync(new(page.id, "gallery", $"Image-{imageLabel}"), imageBin, $"{imageLabel}.png", signal.Token));
+                    var image = await helper.Try((c, breaker) => c.CreateImageAsync(new(page.id, "gallery", $"Image-{imageLabel}"), imageBin, $"{imageLabel}.png", breaker));
                 }
 
                 var attachCount = Random.Shared.Next(genPageAttaches.min, genPageAttaches.max + 1);
@@ -102,12 +104,12 @@ return await Paved.ProceedAsync(async () =>
                     if (Random.Shared.Next(2) == 0)
                     {
                         var attachBin = Encoding.UTF8.GetBytes($"TextContent-{attachLabel}");
-                        var attach = await helper.Try(s => s.CreateFileAttachmentAsync(new($"Text-{attachLabel}", page.id), attachBin, $"{attachLabel}.txt", signal.Token));
+                        var attach = await helper.Try((c, breaker) => c.CreateFileAttachmentAsync(new($"Text-{attachLabel}", page.id), attachBin, $"{attachLabel}.txt", breaker));
                     }
                     else
                     {
                         var attachLink = $"http://localhost/{linkPath}/{a}";
-                        var attach = await helper.Try(s => s.CreateLinkAttachmentAsync(new($"Text-{attachLabel}", page.id, attachLink), signal.Token));
+                        var attach = await helper.Try((c, breaker) => c.CreateLinkAttachmentAsync(new($"Text-{attachLabel}", page.id, attachLink), breaker));
                     }
                 }
             }

@@ -1,7 +1,6 @@
 #r "nuget: Lestaly.General, 0.100.0"
 #load ".settings.csx"
 #nullable enable
-using System.Threading;
 using Lestaly;
 using Lestaly.Cx;
 

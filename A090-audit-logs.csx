@@ -1,6 +1,7 @@
 #load ".common.csx"
 #nullable enable
 using BookStackApiClient;
+using BookStackApiClient.Utility;
 using Kokuban;
 using Lestaly;
 
@@ -27,30 +28,13 @@ return await Paved.ProceedAsync(async () =>
 
     // Create client and helper
     using var client = new BookStackClient(info.ApiEntry, info.Key.Token, info.Key.Secret);
-    var helper = new BookStackClientHelper(client, signal.Token);
+    using var helper = new BookStackClientHelper(client, signal.Token);
+    helper.LimitHandler += async a => await Task.Delay(TimeSpan.FromSeconds(a.Exception.RetryAfter));
 
-    // List all logs
-    var offset = 0;
-    while (true)
+    // Show audit logs
+    await foreach (var log in helper.EnumerateAllAuditLogsAsync())
     {
-        // Get a list of audit-logs
-        var logs = await helper.Try(c => c.ListAuditLogAsync(new(offset, count: 500), signal.Token));
-        if (logs.data.Length <= 0) break;
-
-        // Show audit logs
-        var userWidth = logs.data.Max(l => l.user?.name?.Length ?? 0);
-        var eventWidth = logs.data.Max(l => l.type?.Length ?? 0);
-        foreach (var log in logs.data)
-        {
-            var name = (log.user?.name ?? "").Decorate(n => $"[{n}]").PadRight(userWidth);
-            var logtype = (log.type ?? "").PadRight(eventWidth);
-            WriteLine($"{log.created_at.ToLocalTime()}: {log.ip} {name} {logtype} {log.loggable_type.WhenEmpty("*")} - {log.detail}");
-        }
-
-        // Update search information and determine end of search.
-        offset += logs.data.Length;
-        var finished = (logs.data.Length <= 0) || (logs.total <= offset);
-        if (finished) break;
+        WriteLine($"{log.created_at.ToLocalTime()}: {log.ip} {log.user?.name} {log.type} {log.loggable_type.WhenEmpty("*")} - {log.detail}");
     }
 
     // If API access is successful, scramble and save the API key.
