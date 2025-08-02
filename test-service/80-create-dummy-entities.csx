@@ -22,7 +22,7 @@ return await Paved.ProceedAsync(async () =>
 
     // Prepare console
     using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
-    using var signal = ConsoleWig.CreateCancelKeyHandlePeriod();
+    using var signal = new SignalCancellationPeriod();
 
     // Show info
     WriteLine($"Create dummy data in BookStack.");

@@ -25,14 +25,9 @@ var settings = new
         new("Dapper",               "2.1.66"        ),
         new("MySqlConnector",       "2.4.0"         ),
         new("BCrypt.Net-Next",      "4.0.3"         ),
+        new("NuGet.Protocol",       "6.14.0"        ),
     },
 };
-
-// Package version information data type
-record PackageVersion(string Name, string Version)
-{
-    public SemanticVersion SemanticVersion { get; } = SemanticVersion.Parse(Version);
-}
 
 return await Paved.ProceedAsync(async () =>
 {
@@ -72,14 +67,14 @@ return await Paved.ProceedAsync(async () =>
             // Parse the version number.
             if (!SemanticVersion.TryParse(match.Groups["version"].Value, out var pkgVer))
             {
-                WriteLine(Chalk.BrightYellow[$"  Skip: Unable to recognize version number"]);
+                WriteLine(Chalk.Yellow[$"  Skip: Unable to recognize version number"]);
                 continue;
             }
 
             // Determine if the package version needs to be updated.
             if (pkgVer == package.SemanticVersion)
             {
-                WriteLine(Chalk.BrightYellow[$"  Skip: {pkgName} - Already in version"]);
+                WriteLine(Chalk.Gray[$"  Skip: {pkgName} - Already in version"]);
                 continue;
             }
 
@@ -99,8 +94,14 @@ return await Paved.ProceedAsync(async () =>
         }
         else if (!detected)
         {
-            WriteLine(Chalk.BrightYellow[$"  Directive not found"]);
+            WriteLine(Chalk.Gray[$"  Directive not found"]);
         }
     }
 
 });
+
+// Package version information data type
+record PackageVersion(string Name, string Version)
+{
+    public SemanticVersion SemanticVersion { get; } = SemanticVersion.Parse(Version);
+}

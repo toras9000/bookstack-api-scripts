@@ -13,6 +13,8 @@ var settings = new
     {
         Port = (ushort)9985,
 
+        Host = "localhost",
+
         Database = "bookstack_store",
 
         Username = "bookstack_user",
