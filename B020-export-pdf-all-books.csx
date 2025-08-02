@@ -38,9 +38,9 @@ return await Paved.ProceedAsync(async () =>
     await foreach (var book in helper.EnumerateAllBooksAsync())
     {
         WriteLine($"Book: {Chalk.Green[book.name]}");
-        var pdfBin = await helper.Try((c, breaker) => c.ExportBookPdfAsync(book.id, breaker));
+        using var pdf = await helper.Try((c, breaker) => c.ExportBookPdfAsync(book.id, breaker));
         var pdfFile = settings.ExportDir.RelativeFile($"{book.id:D4}.{book.name.ToFileName()}.pdf").WithDirectoryCreate();
-        await pdfFile.WriteAllBytesAsync(pdfBin, signal.Token);
+        await pdfFile.WriteAllBytesAsync(pdf, default, signal.Token);
     }
 
     // If API access is successful, scramble and save the API key.
