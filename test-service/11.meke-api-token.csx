@@ -54,7 +54,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     var secretHash = BCrypt.Net.BCrypt.HashPassword(tokenSecret, hashSalt);
     var tokenParam = new
     {
-        name = tokenSecret,
+        name = tokenName,
         user_id = tokenUserId,
         token_id = tokenId,
         secret = secretHash,
