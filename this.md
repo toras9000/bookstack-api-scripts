@@ -1,15 +1,16 @@
 # sample script
 
-Sample C# script using [BookStackApiClient](https://www.nuget.org/packages/BookStackApiClient).
+Sample C# file-based apps using [BookStackApiClient](https://www.nuget.org/packages/BookStackApiClient).
 
-# C# script
+# C# file-based apps
 
-The following is required to run the C# script
+The following is required to run the C# file-based apps
 
-- .NET 8 SDK Installation
+- .NET 10 SDK Installation
     - https://dotnet.microsoft.com/download
-- Installing dotnet-script v1.5.0 or later
-    - `dotnet tool install -g dotnet-script`
-- Run script
-    - `dotnet script <script-file>`
 
+
+The most reliable command line to execute is as follows.
+```
+dotnet run --file ./A010-create-book-chapter-page.cs1
+```

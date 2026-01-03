@@ -1,0 +1,43 @@
+#!/usr/bin/env -S dotnet run --file
+#:package BookStackApiClient@25.12.0-lib.0
+#:package Lestaly.General@0.114.0
+#:package RefFile@0.2.0
+#:property PublishAot=false
+using BookStackApiClient;
+using Lestaly;
+[assembly: RefFile(".common-auth.cs1")]
+
+// Sample of user creation
+
+var settings = new
+{
+    // BookStack service URL.
+    ServiceUrl = new Uri("http://localhost:9986/"),
+};
+
+// main processing
+return await Paved.ProceedAsync(async () =>
+{
+    // Prepare console
+    using var signal = new SignalCancellationPeriod();
+
+    // Show access address
+    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+
+    // Attempt to recover saved API key information.
+    var keyStore = new ApiKeyStore(ThisSource.Directory());
+    var restored = await keyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
+
+    // Create client
+    using var client = new BookStackClient(keyStore.Key.ApiEntry, keyStore.Key.Token, keyStore.Key.Secret);
+
+    // Create user
+    var email = $"user-{Guid.NewGuid()}@example.com";
+    var user = await client.CreateUserAsync(new("test-user", email), signal.Token);
+
+    Console.WriteLine("Created user:");
+    Console.WriteLine($"  User ID: {user.id}, {user.name} : {settings.ServiceUrl.AuthorityRelative($"settings/users/{user.id}").AbsoluteUri}");
+
+    // If API access is successful, scramble and save the API key.
+    if (!restored) await keyStore.SaveAsync();
+});

@@ -1,0 +1,9 @@
+#!/usr/bin/env -S dotnet run --file
+#:package Lestaly@0.114.0
+using Lestaly;
+using Lestaly.Cx;
+
+var composeFile = ThisSource.RelativeFile("./docker/compose.yml");
+var appPort = (await "docker".args("compose", "--file", composeFile, "port", "app", "80").silent().result().success().output(trim: true)).SkipToken(':');
+var service = new Uri($"http://localhost:{appPort}");
+Console.WriteLine($" {Poster.Link[$"{service}", $"BookStack - {service}"]}");

@@ -1,0 +1,53 @@
+#!/usr/bin/env -S dotnet run --file
+#:package BookStackApiClient@25.12.0-lib.0
+#:package Kokuban@0.2.0
+#:package Lestaly.General@0.114.0
+#:package RefFile@0.2.0
+#:property PublishAot=false
+using BookStackApiClient;
+using BookStackApiClient.Utility;
+using Kokuban;
+using Lestaly;
+[assembly: RefFile(".common-auth.cs1")]
+
+// Export all books as PDFs.
+
+var settings = new
+{
+    // BookStack service URL.
+    ServiceUrl = new Uri("http://localhost:9986/"),
+
+    // Destination directory for export data.
+    ExportDir = ThisSource.RelativeDirectory("exports/pdf"),
+};
+
+// main processing
+return await Paved.ProceedAsync(async () =>
+{
+    // Prepare console
+    using var signal = new SignalCancellationPeriod();
+
+    // Show access address
+    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+
+    // Attempt to recover saved API key information.
+    var keyStore = new ApiKeyStore(ThisSource.Directory());
+    var restored = await keyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
+
+    // Create client and helper
+    using var client = new BookStackClient(keyStore.Key.ApiEntry, keyStore.Key.Token, keyStore.Key.Secret);
+    using var helper = new BookStackClientHelper(client, signal.Token);
+    helper.LimitHandler += async a => await Task.Delay(TimeSpan.FromSeconds(a.Exception.RetryAfter));
+
+    // List all books
+    await foreach (var book in helper.EnumerateAllBooksAsync())
+    {
+        Console.WriteLine($"Book: {Chalk.Green[book.name]}");
+        using var pdf = await helper.Try((c, breaker) => c.ExportBookPdfAsync(book.id, breaker));
+        var pdfFile = settings.ExportDir.RelativeFile($"{book.id:D4}.{book.name.ToFileName()}.pdf").WithDirectoryCreate();
+        await pdfFile.WriteAllBytesAsync(pdf.Stream, default, signal.Token);
+    }
+
+    // If API access is successful, scramble and save the API key.
+    if (!restored) await keyStore.SaveAsync();
+});

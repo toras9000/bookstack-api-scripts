@@ -1,0 +1,81 @@
+#!/usr/bin/env -S dotnet run --file
+#:package BookStackApiClient@25.12.0-lib.0
+#:package Lestaly.General@0.114.0
+using Lestaly;
+
+/// <summary>API Access Information</summary>
+/// <param name="ApiEntry">API base address</param>
+/// <param name="Token">API Token ID</param>
+/// <param name="Secret">API Token Secret</param>
+public record ApiKeyInfo(Uri ApiEntry, string Token, string Secret);
+
+/// <summary>API Key Store Management</summary>
+public class ApiKeyStore
+{
+    /// <summary>constructor</summary>
+    /// <param name="storeFile">API key scramble save file</param>
+    /// <param name="fileName">Store file name</param>
+    public ApiKeyStore(DirectoryInfo contextDir, string? fileName = null)
+    {
+        // Determine the scrambled save file.
+        this.ScrambleFile = contextDir.RelativeFile(fileName ?? DefaultStoreFileName);
+
+        // Attempt to read the stored API key information.
+        this.scrambler = new RoughScrambler(context: this.ScrambleFile.FullName);
+    }
+
+    /// <summary>Default stored file name</summary>
+    public static string DefaultStoreFileName { get; } = ".api-key.sav";
+
+    /// <summary>API key scramble save file.</summary>
+    public FileInfo ScrambleFile { get; }
+
+    /// <summary>API Key Information</summary>
+    public ApiKeyInfo Key => this.key ?? throw new InvalidOperationException();
+
+    /// <summary>API Entry address</summary>
+    public Uri ApiEntry => this.Key.ApiEntry;
+
+    /// <summary>Attempt to recover saved API key information.</summary>
+    /// <param name="apiEntry">API base address</param>
+    /// <param name="cancelToken">cancel token</param>
+    /// <returns>API Key Management Instance</returns>
+    public async ValueTask<bool> RestoreAsync(Uri apiEntry, CancellationToken cancelToken = default)
+    {
+        var keyInfo = await this.scrambler.DescrambleObjectFromFileAsync<ApiKeyInfo>(this.ScrambleFile, cancelToken);
+        if (keyInfo != null && keyInfo.ApiEntry.AbsoluteUri == apiEntry.AbsoluteUri)
+        {
+            this.key = keyInfo;
+            return true;
+        }
+
+        // If there is no restoration information, it asks for input.
+        Console.Write("API Token\n>");
+        var token = Console.ReadLine().CancelIfWhite();
+        Console.Write("API Secret\n>");
+        var secret = Console.ReadLine().CancelIfWhite();
+        this.key = new(apiEntry, token, secret);
+        return false;
+    }
+
+    /// <summary>Save API key information</summary>
+    /// <param name="cancelToken"></param>
+    /// <returns>Success or failure</returns>
+    public async ValueTask<bool> SaveAsync(CancellationToken cancelToken = default)
+    {
+        var result = true;
+        try
+        {
+            await this.scrambler.ScrambleObjectToFileAsync(ScrambleFile, this.Key, cancelToken: cancelToken);
+            return true;
+        }
+        catch { result = false; }
+        return result;
+    }
+
+    /// <summary>Key scrambler</summary>
+    private RoughScrambler scrambler;
+
+    /// <summary>API Key Information</summary>
+    private ApiKeyInfo? key;
+}

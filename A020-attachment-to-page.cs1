@@ -1,0 +1,53 @@
+#!/usr/bin/env -S dotnet run --file
+#:package BookStackApiClient@25.12.0-lib.0
+#:package Lestaly.General@0.114.0
+#:package RefFile@0.2.0
+#:property PublishAot=false
+using System.Text;
+using BookStackApiClient;
+using Lestaly;
+[assembly: RefFile(".common-auth.cs1")]
+
+// Sample of attachment
+
+var settings = new
+{
+    // BookStack service URL.
+    ServiceUrl = new Uri("http://localhost:9986/"),
+};
+
+// main processing
+return await Paved.ProceedAsync(async () =>
+{
+    // Prepare console
+    using var signal = new SignalCancellationPeriod();
+
+    // Show access address
+    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+
+    // Attempt to recover saved API key information.
+    var keyStore = new ApiKeyStore(ThisSource.Directory());
+    var restored = await keyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
+
+    // Create book, chapter, and pages.
+    using var client = new BookStackClient(keyStore.Key.ApiEntry, keyStore.Key.Token, keyStore.Key.Secret);
+    var book = await client.CreateBookAsync(new("AttachmentTestBook"), cancelToken: signal.Token);
+    var page = await client.CreateMarkdownPageInBookAsync(new(book.id, "AttachmentTestPage", "# Test page in book"), signal.Token);
+
+    // Attach
+    var file = ThisSource.File();
+    var attach1 = await client.CreateFileAttachmentAsync(new("attach from path", page.id), file.FullName, default, signal.Token);
+
+    var content = Encoding.UTF8.GetBytes("attachment test");
+    var attach2 = await client.CreateFileAttachmentAsync(new("attach from array", page.id), content, "test.txt", signal.Token);
+
+    var url = "http://localhost:9986/";
+    var attach3 = await client.CreateLinkAttachmentAsync(new("attach link", page.id, url), signal.Token);
+
+    // Get information on created object (want URL)
+    var foundPage = (await client.SearchAsync(new($"{{type:page}} {{in_name:{page.name}}}"), signal.Token)).data.First(s => s.type == "page" && s.id == page.id);
+    Console.WriteLine($"Attached page: {Poster.Link[foundPage.url]}");
+
+    // If API access is successful, scramble and save the API key.
+    if (!restored) await keyStore.SaveAsync();
+});

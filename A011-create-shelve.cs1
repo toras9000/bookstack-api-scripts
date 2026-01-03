@@ -1,0 +1,52 @@
+#!/usr/bin/env -S dotnet run --file
+#:package BookStackApiClient@25.12.0-lib.0
+#:package Lestaly.General@0.114.0
+#:package RefFile@0.2.0
+#:property PublishAot=false
+using BookStackApiClient;
+using Lestaly;
+[assembly: RefFile(".common-auth.cs1")]
+
+// Sample of shelf creation
+
+var settings = new
+{
+    // BookStack service URL.
+    ServiceUrl = new Uri("http://localhost:9986/"),
+};
+
+// main processing
+return await Paved.ProceedAsync(async () =>
+{
+    // Prepare console
+    using var signal = new SignalCancellationPeriod();
+
+    // Show access address
+    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+
+    // Attempt to recover saved API key information.
+    var keyStore = new ApiKeyStore(ThisSource.Directory());
+    var restored = await keyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
+
+    // Create books.
+    using var client = new BookStackClient(keyStore.Key.ApiEntry, keyStore.Key.Token, keyStore.Key.Secret);
+    var book1 = await client.CreateBookAsync(new("ApartTestBook1"), cancelToken: signal.Token);
+    var book2 = await client.CreateBookAsync(new("ApartTestBook2"), cancelToken: signal.Token);
+    var book3 = await client.CreateBookAsync(new("ApartTestBook3"), cancelToken: signal.Token);
+    var book4 = await client.CreateBookAsync(new("ApartTestBook4"), cancelToken: signal.Token);
+    var book5 = await client.CreateBookAsync(new("ApartTestBook5"), cancelToken: signal.Token);
+    var book6 = await client.CreateBookAsync(new("ApartTestBook6"), cancelToken: signal.Token);
+
+    // Create shelves
+    var shelf1 = await client.CreateShelfAsync(new("TestShelf1", books: [book1.id, book4.id, book5.id]), cancelToken: signal.Token);
+    var shelf2 = await client.CreateShelfAsync(new("TestShelf2", books: [book2.id, book3.id, book4.id, book5.id]), cancelToken: signal.Token);
+    var shelf3 = await client.CreateShelfAsync(new("TestShelf3", books: [book1.id]), cancelToken: signal.Token);
+
+    Console.WriteLine("Created contents:");
+    Console.WriteLine($"  Shelf1[{shelf1.id}] {Poster.Link[settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf1.slug}").AbsoluteUri]}");
+    Console.WriteLine($"  Shelf2[{shelf2.id}] {Poster.Link[settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf2.slug}").AbsoluteUri]}");
+    Console.WriteLine($"  Shelf3[{shelf3.id}] {Poster.Link[settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf3.slug}").AbsoluteUri]}");
+
+    // If API access is successful, scramble and save the API key.
+    if (!restored) await keyStore.SaveAsync();
+});

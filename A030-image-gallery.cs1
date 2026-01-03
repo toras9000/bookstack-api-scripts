@@ -1,0 +1,51 @@
+#!/usr/bin/env -S dotnet run --file
+#:package BookStackApiClient@25.12.0-lib.0
+#:package SkiaSharp@3.119.1
+#:package Lestaly.General@0.114.0
+#:package RefFile@0.2.0
+#:property PublishAot=false
+using BookStackApiClient;
+using Lestaly;
+[assembly: RefFile(".common-auth.cs1")]
+[assembly: RefFile(".common-gen.cs1")]
+
+// Sample of image upload
+
+var settings = new
+{
+    // BookStack service URL.
+    ServiceUrl = new Uri("http://localhost:9986/"),
+};
+
+// main processing
+return await Paved.ProceedAsync(async () =>
+{
+    // Prepare console
+    using var signal = new SignalCancellationPeriod();
+
+    // Show access address
+    Console.WriteLine($"Service URL : {settings.ServiceUrl}");
+
+    // Attempt to recover saved API key information.
+    var keyStore = new ApiKeyStore(ThisSource.Directory());
+    var restored = await keyStore.RestoreAsync(new(settings.ServiceUrl, "/api/"), signal.Token);
+
+    // Create book, chapter, and pages.
+    using var client = new BookStackClient(keyStore.Key.ApiEntry, keyStore.Key.Token, keyStore.Key.Secret);
+    var book = await client.CreateBookAsync(new("ImageGalleryTestBook"), cancelToken: signal.Token);
+    var page = await client.CreateMarkdownPageInBookAsync(new(book.id, "ImageGalleryTestPage", "# Test page in book"), signal.Token);
+
+    // Upload image
+    var file = ThisSource.RelativeFile("materials/images/test-image.png");
+    var image1 = await client.CreateImageAsync(new(page.id, "gallery", "Image from file path"), file.FullName, default, signal.Token);
+
+    var binary = ContentGenerator.CreateRectImage(25, 25, 50, 50, imgWidth: 100, imgHeight: 100, format: "png");
+    var image2 = await client.CreateImageAsync(new(page.id, "gallery", "Image from binary array"), binary, "gen-image.png", signal.Token);
+
+    // Get information on created object (want URL)
+    var foundPage = (await client.SearchAsync(new($"{{type:page}} {{in_name:{page.name}}}"), signal.Token)).data.First(s => s.type == "page" && s.id == page.id);
+    Console.WriteLine($"Uploaded page: {Poster.Link[foundPage.url]}");
+
+    // If API access is successful, scramble and save the API key.
+    if (!restored) await keyStore.SaveAsync();
+});
