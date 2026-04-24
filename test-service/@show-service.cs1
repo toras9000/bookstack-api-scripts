@@ -1,5 +1,5 @@
 #!/usr/bin/env -S dotnet run --file
-#:package Lestaly@0.114.0
+#:package Lestaly@0.123.0
 using Lestaly;
 using Lestaly.Cx;
 
