@@ -3,7 +3,6 @@
 #:package SkiaSharp@3.119.2
 #:package Lestaly.General@0.123.0
 #:package RefFile@0.2.0
-#:property PublishAot=false
 using BookStackApiClient;
 using Lestaly;
 [assembly: RefFile(".common-auth.cs1")]

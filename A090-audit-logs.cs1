@@ -2,7 +2,6 @@
 #:package BookStackApiClient@26.3.0-lib.2
 #:package Lestaly.General@0.123.0
 #:package RefFile@0.2.0
-#:property PublishAot=false
 using BookStackApiClient;
 using BookStackApiClient.Utility;
 using Lestaly;

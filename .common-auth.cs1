@@ -1,6 +1,8 @@
 #!/usr/bin/env -S dotnet run --file
 #:package BookStackApiClient@26.3.0-lib.2
 #:package Lestaly.General@0.123.0
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Lestaly;
 
 /// <summary>API Access Information</summary>
@@ -42,7 +44,17 @@ public class ApiKeyStore
     /// <returns>API Key Management Instance</returns>
     public async ValueTask<bool> RestoreAsync(Uri apiEntry, CancellationToken cancelToken = default)
     {
-        var keyInfo = await this.scrambler.DescrambleObjectFromFileAsync<ApiKeyInfo>(this.ScrambleFile, cancelToken);
+        var keyInfo = default(ApiKeyInfo);
+        try
+        {
+            var state = await this.ScrambleFile.ReadAllTextAsync(cancelToken);
+            var (sUri, sToken, sSecret) = state.Split("::");
+            var dUri = this.scrambler.DescrambleText(sUri.DecodeBase64()) ?? throw new Exception();
+            var dToken = this.scrambler.DescrambleText(sToken.DecodeBase64()) ?? throw new Exception();
+            var dSecret = this.scrambler.DescrambleText(sSecret.DecodeBase64()) ?? throw new Exception();
+            keyInfo = new ApiKeyInfo(new(dUri), dToken, dSecret);
+        }
+        catch { }
         if (keyInfo != null && keyInfo.ApiEntry.AbsoluteUri == apiEntry.AbsoluteUri)
         {
             this.key = keyInfo;
@@ -66,7 +78,11 @@ public class ApiKeyStore
         var result = true;
         try
         {
-            await this.scrambler.ScrambleObjectToFileAsync(ScrambleFile, this.Key, cancelToken: cancelToken);
+            var sUri = this.scrambler.ScrambleText(this.Key.ApiEntry.AbsoluteUri).EncodeBase64();
+            var sToken = this.scrambler.ScrambleText(this.Key.Token).EncodeBase64();
+            var sSecret = this.scrambler.ScrambleText(this.Key.Secret).EncodeBase64();
+            var text = $"{sUri}::{sToken}::{sSecret}";
+            await this.ScrambleFile.WriteAllTextAsync(text, cancelToken);
             return true;
         }
         catch { result = false; }
@@ -78,4 +94,5 @@ public class ApiKeyStore
 
     /// <summary>API Key Information</summary>
     private ApiKeyInfo? key;
+
 }

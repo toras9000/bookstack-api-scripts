@@ -1,11 +1,9 @@
 #!/usr/bin/env -S dotnet run --file
 #:package MySqlConnector@2.5.0
-#:package Dapper@2.1.72
 #:package BCrypt.Net-Next@4.1.0
 #:package Lestaly.General@0.123.0
 #:package RefFile@0.2.0
-#:property PublishAot=false
-using Dapper;
+using System.Data;
 using Lestaly;
 using MySqlConnector;
 [assembly: RefFile(".settings.cs1")]
@@ -29,22 +27,37 @@ return await Paved.ProceedAsync(noPause: args.RoughContains("--no-pause"), async
     var tokenSecret = settings.BookStack.Api.TokenSecret;
 
     Console.WriteLine("Get user id ...");
-    var tokenUserId = await mysql.ExecuteScalarAsync<uint?>(
-        sql: "select id from users where name = @user",
-        param: new { user = tokenUser }
-    ) ?? throw new Exception($"User '{tokenUser}' not found");
+    var tokenUserId = default(uint?);
+    using (var command = mysql.CreateCommand())
+    {
+        command.CommandType = CommandType.Text;
+        command.CommandText = "select id from users where name = @user";
+        command.Parameters.Add(new MySqlParameter("user", tokenUser));
+
+        tokenUserId = (uint?)await command.ExecuteScalarAsync() ?? throw new Exception($"User '{tokenUser}' not found");
+    }
     Console.WriteLine($".. User: {tokenUser} [{tokenUserId}]");
 
     Console.WriteLine("Check token id ...");
-    var existingTokens = await mysql.QueryAsync(
-        sql: "select user_id, token_id from api_tokens where user_id = @user_id or token_id = @token_id",
-        param: new { user_id = tokenUserId, token_id = tokenId, },
-        map: (uint user_id, string token_id) => new { user_id, token_id, },
-        splitOn: "*"
-    );
-    if (existingTokens.Any(t => t.token_id == tokenId))
+    var existingTokens = new List<UserToken>();
+    using (var command = mysql.CreateCommand())
     {
-        var satisfy = existingTokens.Any(t => t.token_id == tokenId && t.user_id == tokenUserId);
+        command.CommandType = CommandType.Text;
+        command.CommandText = "select user_id, token_id from api_tokens where user_id = @user_id or token_id = @token_id";
+        command.Parameters.Add(new MySqlParameter("user_id", tokenUserId));
+        command.Parameters.Add(new MySqlParameter("token_id", tokenId));
+
+        using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var userID = reader.GetUInt32("user_id");
+            var tokenID = reader.GetString("token_id");
+            existingTokens.Add(new(userID, tokenID));
+        }
+    }
+    if (existingTokens.Any(t => t.TokenID == tokenId))
+    {
+        var satisfy = existingTokens.Any(t => t.TokenID == tokenId && t.UserID == tokenUserId);
         if (!satisfy) throw new Exception("Duplicate token ID for other user");
         Console.WriteLine(".. Already exists");
         return;
@@ -54,17 +67,19 @@ return await Paved.ProceedAsync(noPause: args.RoughContains("--no-pause"), async
     Console.WriteLine("Create api token ...");
     var hashSalt = BCrypt.Net.BCrypt.GenerateSalt(12, 'y');
     var secretHash = BCrypt.Net.BCrypt.HashPassword(tokenSecret, hashSalt);
-    var tokenParam = new
+    using (var command = mysql.CreateCommand())
     {
-        name = tokenName,
-        user_id = tokenUserId,
-        token_id = tokenId,
-        secret = secretHash,
-        expires_at = DateTime.Now.AddYears(100),
-    };
-    await mysql.ExecuteAsync(
-        sql: "insert into api_tokens (name, user_id, token_id, secret, expires_at) values (@name, @user_id, @token_id, @secret, @expires_at)",
-        param: tokenParam
-    );
+        command.CommandType = CommandType.Text;
+        command.CommandText = "insert into api_tokens (name, user_id, token_id, secret, expires_at) values (@name, @user_id, @token_id, @secret, @expires_at)";
+        command.Parameters.Add(new MySqlParameter("name", tokenName));
+        command.Parameters.Add(new MySqlParameter("user_id", tokenUserId));
+        command.Parameters.Add(new MySqlParameter("token_id", tokenId));
+        command.Parameters.Add(new MySqlParameter("secret", secretHash));
+        command.Parameters.Add(new MySqlParameter("expires_at", DateTime.Now.AddYears(100)));
+
+        await command.ExecuteNonQueryAsync();
+    }
     Console.WriteLine(".. Token created");
 });
+
+record struct UserToken(uint UserID, string TokenID);
