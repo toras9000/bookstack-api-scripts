@@ -1,6 +1,6 @@
 #!/usr/bin/env -S dotnet run --file
-#:package BookStackApiClient@26.3.0-lib.2
-#:package Lestaly.General@0.123.0
+#:package BookStackApiClient@26.5.0-lib.2
+#:package Lestaly.General@0.136.0
 #:package RefFile@0.2.0
 using BookStackApiClient;
 using Lestaly;
@@ -42,9 +42,9 @@ return await Paved.ProceedAsync(async () =>
     var shelf3 = await client.CreateShelfAsync(new("TestShelf3", books: [book1.id]), cancelToken: signal.Token);
 
     Console.WriteLine("Created contents:");
-    Console.WriteLine($"  Shelf1[{shelf1.id}] {Poster.Link[settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf1.slug}").AbsoluteUri]}");
-    Console.WriteLine($"  Shelf2[{shelf2.id}] {Poster.Link[settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf2.slug}").AbsoluteUri]}");
-    Console.WriteLine($"  Shelf3[{shelf3.id}] {Poster.Link[settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf3.slug}").AbsoluteUri]}");
+    Console.WriteLine($"  Shelf1[{shelf1.id}] {Poster.Link[settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf1.slug}")]}");
+    Console.WriteLine($"  Shelf2[{shelf2.id}] {Poster.Link[settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf2.slug}")]}");
+    Console.WriteLine($"  Shelf3[{shelf3.id}] {Poster.Link[settings.ServiceUrl.AuthorityRelative($"/shelves/{shelf3.slug}")]}");
 
     // If API access is successful, scramble and save the API key.
     if (!restored) await keyStore.SaveAsync();

@@ -1,8 +1,8 @@
 #!/usr/bin/env -S dotnet run --file
-#:package BookStackApiClient@26.3.0-lib.2
+#:package BookStackApiClient@26.5.0-lib.2
 #:package Kokuban@0.2.0
-#:package SkiaSharp@3.119.2
-#:package Lestaly.General@0.123.0
+#:package SkiaSharp@3.119.4
+#:package Lestaly.General@0.136.0
 #:package RefFile@0.2.0
 using System.Text;
 using BookStackApiClient;
