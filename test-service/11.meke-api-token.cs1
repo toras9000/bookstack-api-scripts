@@ -1,7 +1,7 @@
 #!/usr/bin/env -S dotnet run --file
-#:package MySqlConnector@2.6.0
+#:package MySqlConnector@2.6.1
 #:package BCrypt.Net-Next@4.2.0
-#:package Lestaly.General@0.136.0
+#:package Lestaly.General@0.139.0
 #:package RefFile@0.2.0
 using System.Data;
 using Lestaly;

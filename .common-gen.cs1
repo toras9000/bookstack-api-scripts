@@ -1,5 +1,5 @@
 #!/usr/bin/env -S dotnet run --file
-#:package SkiaSharp@3.119.4
+#:package SkiaSharp@4.148.0
 using SkiaSharp;
 
 /// <summary>
@@ -11,7 +11,7 @@ public static class ContentGenerator
         => CreateImage((canvas, font, painter) => canvas.DrawRect(x, y, width, height, painter), imgWidth, imgHeight, fgcolor, bgcolor, format);
 
     public static byte[] CreateTextImage(string text, int imgWidth = 200, int imgHeight = 150, uint fgcolor = 0xFF000000, uint bgcolor = 0xFF808080, string format = "png")
-        => CreateImage((canvas, font, painter) => canvas.DrawText(text, 5f, font.Size / 2 + imgHeight / 2, new(), painter), imgWidth, imgHeight, fgcolor, bgcolor, format);
+        => CreateImage((canvas, font, painter) => canvas.DrawText(text, 5f, font.Size / 2 + imgHeight / 2, SKTextAlign.Center, new(), painter), imgWidth, imgHeight, fgcolor, bgcolor, format);
 
     public static byte[] CreateCircleImage(float x, float y, float radius, int imgWidth = 200, int imgHeight = 150, uint fgcolor = 0xFF0000FF, uint bgcolor = 0xFFFFFFFF, string format = "png")
         => CreateImage((canvas, font, painter) => canvas.DrawCircle(x, y, radius, painter), imgWidth, imgHeight, fgcolor, bgcolor, format);
