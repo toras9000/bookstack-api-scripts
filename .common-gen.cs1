@@ -1,5 +1,5 @@
 #!/usr/bin/env -S dotnet run --file
-#:package SkiaSharp@4.148.0
+#:package SkiaSharp@4.152.1
 using SkiaSharp;
 
 /// <summary>
