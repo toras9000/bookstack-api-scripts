@@ -1,5 +1,5 @@
 #!/usr/bin/env -S dotnet run --file 
-#:package Lestaly.General@0.146.0
+#:package Lestaly.General@0.147.0
 #:package Kokuban@0.2.0
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
@@ -13,16 +13,17 @@ var settings = new
 
     AssocArgs = "--verbosity quiet",
 
-    Extention = "cs1",
-
     ProgID = "dotnet-fileapps",
+
+    Associations = new[]
+    {
+        new { Extension = "cs1", NeedVersion = 10, },
+        new { Extension = "cs2", NeedVersion = 11, },
+    },
 };
 
 return await Paved.ProceedAsync(async () =>
 {
-    // dummy
-    await Task.CompletedTask;
-
     // Check platform type.
     if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
     {
@@ -30,14 +31,14 @@ return await Paved.ProceedAsync(async () =>
     }
 
     // Determine the path of the dotnet executable file.
+    var dotnetVer = 0;
     var dotnetExe = settings.DotnetPath;
     if (dotnetExe == null)
     {
         dotnetExe = Environment.SpecialFolder.ProgramFiles.GetInfo().RelativeFile("dotnet/dotnet.exe");
         if (!dotnetExe.Exists) throw new PavedMessageException("dotnet cannot be found.");
-        var dotnetVer = await dotnetExe.FullName.args("--version").silent().result().success().output();
-        var verMajor = dotnetVer.TakeToken('.').TryParseNumber<int>();
-        if (!(10 <= verMajor)) throw new PavedMessageException(".NET 10 or later is required.");
+        var version = await dotnetExe.FullName.args("--version").silent().result().success().output();
+        dotnetVer = version.TakeToken('.').TryParseNumber<int>() ?? 0;
     }
 
     // Create or open the progid registry key
@@ -50,13 +51,26 @@ return await Paved.ProceedAsync(async () =>
     // Set progid key value
     progKey.SetValue(null, assocCmdLine, RegistryValueKind.ExpandString);
 
-    // Create or open the extension registry key
-    var extKey = Registry.CurrentUser.CreateSubKey(@$"Software\Classes\{settings.Extention.EnsureStarts(".")}");
-    if (extKey == null) throw new PavedMessageException("Unable to create or open Extention registry key.");
+    // Assosiation
+    foreach (var assoc in settings.Associations)
+    {
+        Console.WriteLine(Chalk.Blue[$"Extension: {assoc.Extension}"]);
 
-    // Set assosiate key value
-    extKey.SetValue(null, settings.ProgID, RegistryValueKind.String);
+        // Check need version
+        if (dotnetVer < assoc.NeedVersion)
+        {
+            Console.WriteLine(Chalk.Blue[$".. Skip: .NET{assoc.NeedVersion} or later required."]);
+            continue;
+        }
 
-    // Output of normal completion.
-    Console.WriteLine(Chalk.Green["The registry has been updated."]);
+        // Create or open the extension registry key
+        var extKey = Registry.CurrentUser.CreateSubKey(@$"Software\Classes\{assoc.Extension.EnsureStarts(".")}");
+        if (extKey == null) throw new PavedMessageException("Unable to create or open Extention registry key.");
+
+        // Set associate key value
+        extKey.SetValue(null, settings.ProgID, RegistryValueKind.String);
+
+        // Output of normal completion.
+        Console.WriteLine(Chalk.Green[".. The registry has been updated."]);
+    }
 });

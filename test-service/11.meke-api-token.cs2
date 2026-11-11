@@ -1,14 +1,13 @@
 #!/usr/bin/env -S dotnet run --file
 #:package MySqlConnector@2.6.2
 #:package BCrypt.Net-Next@4.2.0
-#:package Lestaly.General@0.146.0
-#:package RefFile@0.2.0
+#:package Lestaly.General@0.147.0
+#:include .settings.cs
 using System.Data;
 using Lestaly;
 using MySqlConnector;
-[assembly: RefFile(".settings.cs1")]
 
-return await Paved.ProceedAsync(noPause: args.RoughContains("--no-pause"), async () =>
+return await Paved.ProceedAsync(async () =>
 {
     Console.WriteLine("Prepare db connection ...");
     var settings = new Settings(ThisSource.Directory());

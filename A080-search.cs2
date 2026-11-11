@@ -1,12 +1,11 @@
 #!/usr/bin/env -S dotnet run --file
 #:package BookStackApiClient@26.9.0-lib.1
-#:package Lestaly.General@0.146.0
-#:package RefFile@0.2.0
+#:package Lestaly.General@0.147.0
+#:include .common-auth.cs
 using BookStackApiClient;
 using Lestaly;
-[assembly: RefFile(".common-auth.cs1")]
 
-// Sample of user creation
+// Sample of search
 
 var settings = new
 {
@@ -30,12 +29,32 @@ return await Paved.ProceedAsync(async () =>
     // Create client
     using var client = new BookStackClient(keyStore.Key.ApiEntry, keyStore.Key.Token, keyStore.Key.Secret);
 
-    // Create user
-    var email = $"user-{Guid.NewGuid()}@example.com";
-    var user = await client.CreateUserAsync(new("test-user", email), signal.Token);
+    // Search
+    Console.WriteLine("Search query");
+    while (true)
+    {
+        // input keyword
+        Console.Write(">");
+        var query = Console.ReadLine();
+        if (query == null || query.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
+        if (query.IsEmpty()) continue;
 
-    Console.WriteLine("Created user:");
-    Console.WriteLine($"  User ID: {user.id}, {user.name} : {settings.ServiceUrl.AuthorityRelative($"settings/users/{user.id}").AbsoluteUri}");
+        // show result
+        var found = await client.SearchAsync(new(query, count: 10), signal.Token);
+        if (found.data.Length <= 0)
+        {
+            Console.WriteLine("No results.");
+        }
+        else
+        {
+            Console.WriteLine((found.data.Length < found.total) ? $"Results (first {found.data.Length}):" : "Results:");
+            foreach (var item in found.data)
+            {
+                Console.WriteLine($"  {item.name}: {item.url}");
+            }
+        }
+        Console.WriteLine();
+    }
 
     // If API access is successful, scramble and save the API key.
     if (!restored) await keyStore.SaveAsync();

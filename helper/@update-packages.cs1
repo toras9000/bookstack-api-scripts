@@ -1,11 +1,10 @@
 #!/usr/bin/env -S dotnet run --file 
-#:package NuGet.Protocol@7.9.0
+#:package NuGet.Protocol@8.0.0
 #:package R3@1.3.1
 #:package Kokuban@0.2.0
-#:package Lestaly.General@0.146.0
+#:package Lestaly.General@0.147.0
 using System.Text.RegularExpressions;
 using Kokuban;
-using Kokuban.AnsiEscape;
 using Lestaly;
 using NuGet.Common;
 using NuGet.Packaging.Core;
@@ -18,6 +17,14 @@ var settings = new
 {
     // Search directory for script files
     TargetDir = ThisSource.RelativeDirectory("../"),
+
+    // Target file extensions
+    TargetExtensions = new[]
+    {
+        ".cs",
+        ".cs1",
+        ".cs2",
+    },
 
     // Version of the package to pin
     FixedVersions = new PackageIdentity[]
@@ -51,9 +58,15 @@ return await Paved.ProceedAsync(async () =>
     // Detection regular expression for package reference directives
     var detector = new Regex(@"^#:package\s+(?<package>[a-zA-Z0-9_\-\.]+)\s*@\s*(?<version>.+)\s*");
 
+    // Target extensions
+    var targetExts = settings.TargetExtensions.Select(e => e.EnsureStarts(".")).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
     // Search for scripts under the target directory
-    foreach (var file in settings.TargetDir.EnumerateFiles("*.cs1", SearchOption.AllDirectories))
+    foreach (var file in settings.TargetDir.EnumerateFiles("*", SearchOption.AllDirectories))
     {
+        // Extension filter
+        if (!targetExts.Contains(file.Extension)) continue;
+
         Console.WriteLine($"File: {file.RelativePathFrom(settings.TargetDir)}");
 
         // Read file contents
@@ -135,7 +148,7 @@ return await Paved.ProceedAsync(async () =>
     var nameWidth = versions.Keys.Max(n => n.Length);
     foreach (var pkg in versions.OrderBy(e => e.Key))
     {
-        var chalk = updatedPackages.Contains(pkg.Key) ? Chalk.Green : new AnsiStyle();
+        var chalk = updatedPackages.Contains(pkg.Key) ? Chalk.Green : default;
         Console.WriteLine($"  {chalk[pkg.Key.PadRight(nameWidth)]}  {chalk[pkg.Value?.Version.ToFullString() ?? "?"]}");
     }
 

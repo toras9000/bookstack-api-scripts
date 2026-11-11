@@ -1,18 +1,22 @@
 #!/usr/bin/env -S dotnet run --file
 #:package BookStackApiClient@26.9.0-lib.1
-#:package Lestaly.General@0.146.0
-#:package RefFile@0.2.0
+#:package Kokuban@0.2.0
+#:package Lestaly.General@0.147.0
+#:include .common-auth.cs
 using BookStackApiClient;
 using BookStackApiClient.Utility;
+using Kokuban;
 using Lestaly;
-[assembly: RefFile(".common-auth.cs1")]
 
-// Displays a list of books accessible to API users.
+// Export all books as PDFs.
 
 var settings = new
 {
     // BookStack service URL.
     ServiceUrl = new Uri("http://localhost:9986/"),
+
+    // Destination directory for export data.
+    ExportDir = ThisSource.RelativeDirectory("exports/pdf"),
 };
 
 // main processing
@@ -33,10 +37,13 @@ return await Paved.ProceedAsync(async () =>
     using var helper = new BookStackClientHelper(client, signal.Token);
     helper.LimitHandler += async a => await Task.Delay(TimeSpan.FromSeconds(a.Exception.RetryAfter));
 
-    // Show audit logs
-    await foreach (var log in helper.EnumerateAllAuditLogsAsync())
+    // List all books
+    await foreach (var book in helper.EnumerateAllBooksAsync())
     {
-        Console.WriteLine($"{log.created_at.ToLocalTime()}: {log.ip} {log.user?.name} {log.type} {log.loggable_type.WhenEmpty("*")} - {log.detail}");
+        Console.WriteLine($"Book: {Chalk.Green[book.name]}");
+        using var pdf = await helper.Try((c, breaker) => c.ExportBookPdfAsync(book.id, breaker));
+        var pdfFile = settings.ExportDir.RelativeFile($"{book.id:D4}.{book.name.ToFileName()}.pdf").WithDirectoryCreate();
+        await pdfFile.WriteAllBytesAsync(pdf.Stream, default, signal.Token);
     }
 
     // If API access is successful, scramble and save the API key.

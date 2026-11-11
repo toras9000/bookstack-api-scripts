@@ -1,10 +1,9 @@
 #!/usr/bin/env -S dotnet run --file
 #:package BookStackApiClient@26.9.0-lib.1
-#:package Lestaly.General@0.146.0
-#:package RefFile@0.2.0
+#:package Lestaly.General@0.147.0
+#:include .common-auth.cs
 using BookStackApiClient;
 using Lestaly;
-[assembly: RefFile(".common-auth.cs1")]
 
 // Sample of update permissions
 

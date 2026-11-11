@@ -1,14 +1,13 @@
 #!/usr/bin/env -S dotnet run --file
 #:package BookStackApiClient@26.9.0-lib.1
 #:package Kokuban@0.2.0
-#:package Lestaly.General@0.146.0
-#:package RefFile@0.2.0
+#:package Lestaly.General@0.147.0
+#:include .settings.cs
+#:include ../.common-auth.cs
 using BookStackApiClient;
 using BookStackApiClient.Utility;
 using Kokuban;
 using Lestaly;
-[assembly: RefFile(".settings.cs1")]
-[assembly: RefFile("../.common-auth.cs1")]
 
 return await Paved.ProceedAsync(async () =>
 {
